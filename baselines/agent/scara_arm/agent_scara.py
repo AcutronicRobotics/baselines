@@ -21,6 +21,7 @@ from scipy.interpolate import spline
 import geometry_msgs.msg
 
 from os import path
+from rclpy.qos import QoSProfile, qos_profile_sensor_data
 # from gps.agent.agent import Agent # GPS class needed to inherit from.
 # from gps.agent.agent_utils import setup, generate_noise # setup used to get hyperparams in init and generate_noise to get noise in sample.
 # from gps.agent.config import AGENT_UR_ROS # Parameters needed for config in __init__.
@@ -28,8 +29,8 @@ from os import path
 from baselines.agent.utility.general_utils import forward_kinematics, get_ee_points, rotation_from_matrix, \
     get_rotation_matrix,quaternion_from_matrix# For getting points and velocities.
 # from gps.algorithm.policy.controller_prior_gmm import ControllerPriorGMM
-from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint # Used for publishing UR joint angles.
-from control_msgs.msg import JointTrajectoryControllerState # Used for subscribing to the UR.
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint # Used for publishing scara joint angles.
+from control_msgs.msg import JointTrajectoryControllerState
 from std_msgs.msg import String
 # from gps.proto.gps_pb2 import JOINT_ANGLES, JOINT_VELOCITIES, ACTION, END_EFFECTOR_POINTS, \
     # END_EFFECTOR_POINT_JACOBIANS, END_EFFECTOR_POINT_VELOCITIES, END_EFFECTOR_ROTATIONS, IMAGE_FEAT, RGB_IMAGE, NOISE
@@ -38,6 +39,7 @@ from PyKDL import Jacobian, Chain, ChainJntToJacSolver, JntArray # For KDL Jacob
 from collections import namedtuple
 import scipy.ndimage as sp_ndimage
 from functools import partial
+import PyKDL as kdl
 StartEndPoints = namedtuple('StartEndPoints', ['start', 'target'])
 class MSG_INVALID_JOINT_NAMES_DIFFER(Exception):
     """Error object exclusively raised by _process_observations."""
@@ -48,28 +50,34 @@ class ROBOT_MADE_CONTACT_WITH_GAZEBO_GROUND_SO_RESTART_ROSLAUNCH(Exception):
     pass
 
 
-class AgentSCARAROS():
+class AgentSCARAROS(object):
     """Connects the SCARA actions and Deep Learning algorithms."""
 
-    def __init__(self, urdf_path, init_node=True): #hyperparams, , urdf_path, init_node=True
+    def __init__(self, agent, init_node=True): #hyperparams, , urdf_path, init_node=True
         """Initialized Agent.
         init_node:   Whether or not to initialize a new ROS node."""
 
         print("I am in init")
+        self._observation_msg = None
     #
     #     # Setup the main node.
-        if init_node:
-            print("Init ros node")
-            rclpy.init()
-            node = rclpy.create_node('robot_node')
+        # if init_node:
+        print("Init ros node")
+        rclpy.init(args=None)
+        node = rclpy.create_node('robot_ai_node')
+        global node
+        self._pub = node.create_publisher(JointTrajectory,'/scara_controller/command')
+        # self._callbacks = partial(self._observation_callback, robot_id=0)
+        self._sub = node.create_subscription(JointTrajectoryControllerState, '/scara_controller/state', self._observation_callback, qos_profile=qos_profile_sensor_data)
+        assert self._sub
         self._time_lock = threading.RLock()
         print("setting time clocks")
 
-        if urdf_path.startswith("/"):
-            fullpath = urdf_path
+        if agent['tree_path'].startswith("/"):
+            fullpath = agent['tree_path']
             print(fullpath)
         else:
-            fullpath = os.path.join(os.path.dirname(__file__), "assets", urdf_path)
+            fullpath = os.path.join(os.path.dirname(__file__), "assets", agent['tree_path'])
         if not path.exists(fullpath):
             raise IOError("File %s does not exist" % fullpath)
 
@@ -85,14 +93,15 @@ class AgentSCARAROS():
         # Note that the xacro of the urdf is updated by hand.
         # Then the urdf must be compiled.
 
-        _, self.ur_tree = treeFromFile(urdf_path)
+        _, self.ur_tree = treeFromFile(agent['tree_path'])
         # Retrieve a chain structure between the base and the start of the end effector.
-        self.ur_chain = self.ur_tree.getChain('scara_e1_base_motor', 'scara_e1_motor3')
+        self.ur_chain = self.ur_tree.getChain(agent['link_names'][0], agent['link_names'][-1])
         print(self.ur_chain)
     #     # Initialize a KDL Jacobian solver from the chain.
         self.jac_solver = ChainJntToJacSolver(self.ur_chain)
         print(self.jac_solver)
-        self._observations_stale = [True for _ in range(1)]
+        self._observations_stale = [False for _ in range(1)]
+        print("after observations stale")
 
     #
     #     self._currently_resetting = [False for _ in xrange(self.parallel_num)]
@@ -107,11 +116,7 @@ class AgentSCARAROS():
     #     if not self.parallel_on_conditions:
     #         num_samples_splited = np.array_split(range(self._hyperparams['num_samples']), self.parallel_num)
     #         self._samples_idx = [num_samples.tolist() for num_samples in num_samples_splited if num_samples.size]
-        self._pub = node.create_publisher(JointTrajectory,'joint_publisher')
-    #
-        self._callbacks = partial(self._observation_callback, robot_id=0)
-    #     # self._callbacks_image = [partial(self._observation_image_callback, robot_id=ii) for ii in xrange(self.parallel_num)]
-        self._sub = node.create_subscription(JointTrajectoryControllerState, 'joint_subscriber', self._callbacks)
+
     #     # self._sub = [rospy.Subscriber("/camera1/image_raw",
     #     #                               Image,
     #     #                               self._callbacks_image[ii]) for ii in xrange(self.parallel_num)]
@@ -122,25 +127,30 @@ class AgentSCARAROS():
     #     self.r[0].sleep()
     #
     #
-    def _observation_callback(self, message, robot_id=0):
-        """This callback is set on the subscriber node in self.__init__().
-        It's called by ROS every 40 ms while the subscriber is listening.
-        Primarily updates the present and latest times.
-        This callback is invoked asynchronously, so is effectively a
-        "subscriber thread", separate from the control flow of the rest of
-        GPS, which runs in the "main thread".
-        message: observation from the robot to store each listen."""
-        with self._time_lock:
-            self._observations_stale[robot_id] = False
-            self._observation_msg[robot_id] = message
-            if self._currently_resetting[robot_id]:
-                epsilon = 1e-3
-                reset_action = self.reset_joint_angles[robot_id]
-                now_action = np.asarray(
-                    self._observation_msg[robot_id].actual.positions[:len(reset_action)])
-                du = np.linalg.norm(reset_action-now_action, float('inf'))
-                if du < epsilon:
-                    self._currently_resetting[robot_id] = False
+    def _observation_callback(self, message):
+        # print("Trying to call observation msgs")
+        # global _observation_msg
+        self._observation_msg =  message
+        # print(self._observation_msg.joint_names)
+        # print(_observation_msg)
+        # """This callback is set on the subscriber node in self.__init__().
+        # It's called by ROS every 40 ms while the subscriber is listening.
+        # Primarily updates the present and latest times.
+        # This callback is invoked asynchronously, so is effectively a
+        # "subscriber thread", separate from the control flow of the rest of
+        # GPS, which runs in the "main thread".
+        # message: observation from the robot to store each listen."""
+        # with self._time_lock:
+        #     self._observations_stale[robot_id] = False
+        #     self._observation_msg = message
+        #     if self._currently_resetting[robot_id]:
+        #         epsilon = 1e-3
+        #         reset_action = self.reset_joint_angles[robot_id]
+        #         now_action = np.asarray(
+        #             self._observation_msg.actual.positions[:len(reset_action)])
+        #         du = np.linalg.norm(reset_action-now_action, float('inf'))
+        #         if du < epsilon:
+        #             self._currently_resetting[robot_id] = False
                     # self._reset_cv.notify_all()
         # print('robot call back ', robot_id)
     #
@@ -228,7 +238,7 @@ class AgentSCARAROS():
         self.reset_joint_angles[robot_id] = self._hyperparams['reset_conditions'][condition][JOINT_ANGLES]
 
         # Prepare the present positions to see how far off we are.
-        now_position = np.asarray(self._observation_msg[robot_id].actual.positions[:len(self.reset_joint_angles[robot_id])])
+        now_position = np.asarray(self._observation_msg.actual.positions[:len(self.reset_joint_angles[robot_id])])
 
         # Raise error if robot has made contact with the ground in simulation.
         # This occurs because Gazebo sets joint angles beyond what they can possibly
@@ -242,28 +252,7 @@ class AgentSCARAROS():
             self._pub[robot_id].publish(self._get_ur_trajectory_message(self.reset_joint_angles[robot_id], robot_id=robot_id))
             # self._reset_cv.wait()
 
-    def _run_trial(self, time_to_run=5, test=False, robot_id=0):
-        """'Private' method only called by sample() to collect sample data.
-        Runs an async controller with a policy.
-        The async controller receives observations from ROS subscribers and
-        then uses them to publish actions.
-        policy:      policy object used to get next state
-        noise:       noise necessary in order to carry out the policy
-        time_to_run: is not used in this agent
-        test:        whether it's test phase. If it is, stop the UR robot once the robot
-                     has reached the target position to avoid vibration
-        robot_id:    which robot to move
-
-        Returns:
-            result: a dictionary keyed with each of the constants that
-            appear in the state_include, obs_include, and meta_include
-            sections of the hyperparameters file.  Each of these should
-            be associated with an array indexed by the timestep at which
-            a certain state/observation/meta param occurred and the
-            value representing a particular state/observation/meta
-            param.  Through this indexing scheme the value of each
-            state/observation/meta param at each timestep is stored."""
-
+    def _run_trial(self, agent, time_to_run=5, test=False, robot_id=0):
         # Initialize the data structure to be passed to GPS.
         # result = {param: [] for param in self.x_data_types +
         #                  self.obs_data_types + self.meta_data_types +
@@ -272,98 +261,99 @@ class AgentSCARAROS():
         # Carry out the number of trials specified in the hyperparams.  The
         # index is only called by the policy.act method.  We use a while
         # instead of for because we do not want to iterate if we do not publish.
+        print("I am in run trial function.")
         time_step = 0
         publish_frequencies = []
         start = timer()
         record_actions = [[] for i in range(6)]
         # sample_idx = self.condition_run_trial_times[condition]
-        while time_step < self.STEP_COUNT:
+        while rclpy.ok(): #time_step < agent['T']
+
+            # print("Time step: ", time_step)
             # Only read and process ROS messages if they are fresh.
             if self._observations_stale[robot_id] is False:
                 # # Acquire the lock to prevent the subscriber thread from
                 # # updating times or observation messages.
                 self._time_lock.acquire(True)
-                obs_message = self._observation_msg[robot_id]
-                # obs_message_img = self._observation_msg_image[robot_id]
-                # features = self.extract_features(obs_message_img)
-                # print("features.size: ", features.size)
-                # features_zeros = np.zeros(30 - features.size)
-                # features = np.concatenate([features, features_zeros])
-
+                obs_message = self._observation_msg
 
                 # Make it so that subscriber's thread observation callback
-                # must be called before publishing again.  FIXME: This field
-                # should be protected by the time lock.
-                self._observations_stale[robot_id] = True
+                # must be called before publishing again.
+                self._observations_stale[robot_id] = False
                 # self._observations_stale_image[robot_id] = True
                 # Release the lock after all dynamic variables have been updated.
-                self._time_lock.release()
+
 
                 # Collect the end effector points and velocities in
                 # cartesian coordinates for the state.
                 # Collect the present joint angles and velocities from ROS for the state.
-                last_observations = self._process_observations(obs_message, result, robot_id)
-                # Get Jacobians from present joint angles and KDL trees
-                # The Jacobians consist of a 6x6 matrix getting its from from
-                # (# joint angles) x (len[x, y, z] + len[roll, pitch, yaw])
-                ee_link_jacobians = self._get_jacobians(last_observations[:3], robot_id)
-                trans, rot = forward_kinematics(self.ur_chain[robot_id],
-                                                self._hyperparams['link_names'][robot_id],
-                                                last_observations[:3],
-                                                base_link=self._hyperparams['link_names'][robot_id][0],
-                                                end_link=self._hyperparams['link_names'][robot_id][-1])
-
-                rotation_matrix = np.eye(4)
-                rotation_matrix[:3, :3] = rot
-                rotation_matrix[:3, 3] = trans
-                # angle, dir, _ = rotation_from_matrix(rotation_matrix)
-                # #
-                # current_quaternion = np.array([angle]+dir.tolist())#
-
-                # I need this calculations for the new reward function, need to send them back to the run scara or calculate them here
-                current_quaternion = quaternion_from_matrix(rotation_matrix)
-
-                current_ee_tgt = np.ndarray.flatten(get_ee_points(self._hyperparams['end_effector_points'],
-                                                                  trans,
-                                                                  rot).T)
-                ee_points = current_ee_tgt - self._hyperparams['ee_points_tgt'][condition, :]
-
-                ee_points_jac_trans, _ = self._get_ee_points_jacobians(ee_link_jacobians,
-                                                                       self._hyperparams['end_effector_points'],
-                                                                       rot)
-                ee_velocities = self._get_ee_points_velocities(ee_link_jacobians,
-                                                               self._hyperparams['end_effector_points'],
-                                                               rot,
-                                                               last_observations[3:])
-
-
-                # Concatenate the information that defines the robot state
-                # vector, typically denoted as 'x' in GPS articles.
-                state = np.r_[np.reshape(last_observations, -1),
-                              np.reshape(ee_points, -1),
-                              np.reshape(ee_velocities, -1),]
-                            #   np.reshape(features, -1)]
-                            #   np.reshape(np.zeros(30), -1)]
-                              # np.reshape(quaternion, -1)]
-
-                obs = np.r_[np.reshape(last_observations, -1),
-                              np.reshape(ee_points, -1),
-                              np.reshape(ee_velocities, -1),]
-                            #   np.transpose(obs_message_img,(2, 1, 0)).flatten()]
-
-                # Stop the robot from moving past last position when sample is done.
-                # If this is not called, the robot will complete its last action even
-                # though it is no longer supposed to be exploring.
-                if time_step == self._hyperparams['T']-1:
-                    action = last_observations[:6]
+                last_observations = self._process_observations(obs_message, agent)
+                if last_observations is None:
+                    print("last_observations is empty")
                 else:
-                    # add here the new policy optimization stuff
-                    action = policy.act(state, obs, time_step, noise[time_step])
-                # Primary print statements of the action development.
-                if self.parallel_num == 1:
-                    print('\nTimestep', time_step)
-                print ('Joint States ', np.around(state[:6], 2))
-                print ('Policy Action', np.around(action, 2))
+                # # # Get Jacobians from present joint angles and KDL trees
+                # # # The Jacobians consist of a 6x6 matrix getting its from from
+                # # # (# joint angles) x (len[x, y, z] + len[roll, pitch, yaw])
+                    ee_link_jacobians = self._get_jacobians(last_observations[:3])
+                    if agent['link_names'][-1] is None:
+                        print("End link is empty!!")
+                    else:
+                        # print(agent['link_names'][-1])
+                        trans, rot = forward_kinematics(self.ur_chain,
+                                                    agent['link_names'],
+                                                    last_observations[:3],
+                                                    base_link=agent['link_names'][0],
+                                                    end_link=agent['link_names'][-1])
+                        # #
+                        rotation_matrix = np.eye(4)
+                        rotation_matrix[:3, :3] = rot
+                        rotation_matrix[:3, 3] = trans
+                        # angle, dir, _ = rotation_from_matrix(rotation_matrix)
+                        # #
+                        # current_quaternion = np.array([angle]+dir.tolist())#
+
+                        # I need this calculations for the new reward function, need to send them back to the run scara or calculate them here
+                        current_quaternion = quaternion_from_matrix(rotation_matrix)
+
+                        current_ee_tgt = np.ndarray.flatten(get_ee_points(agent['end_effector_points'],
+                                                                          trans,
+                                                                          rot).T)
+                        ee_points = current_ee_tgt - agent['ee_points_tgt']
+
+                        ee_points_jac_trans, _ = self._get_ee_points_jacobians(ee_link_jacobians,
+                                                                               agent['end_effector_points'],
+                                                                               rot)
+                        ee_velocities = self._get_ee_points_velocities(ee_link_jacobians,
+                                                                       agent['end_effector_points'],
+                                                                       rot,
+                                                                       last_observations[3:])
+
+                        print(ee_points)
+
+                        #
+                        # Concatenate the information that defines the robot state
+                        # vector, typically denoted asrobot_id 'x'.
+                        state = np.r_[np.reshape(last_observations, -1),
+                                      np.reshape(ee_points, -1),
+                                      np.reshape(ee_velocities, -1),]
+
+                        obs = np.r_[np.reshape(last_observations, -1),
+                                      np.reshape(ee_points, -1),
+                                      np.reshape(ee_velocities, -1),]
+                #
+                # # Stop the robot from moving past last position when sample is done.
+                # # If this is not called, the robot will complete its last action even
+                # # though it is no longer supposed to be exploring.
+                # if time_step == agent['T']-1:
+                #     action = last_observations[:6]
+                # else:
+                #     # add here the new policy optimization stuff
+                #     action = policy.act(state, obs, time_step, noise[time_step])
+                # # Primary print statements of the action development.
+                # if self.parallel_num == 1:
+                #     print('\nTimestep', time_step)
+                # print ('Joint States ', np.around(state[:6], 2))
+                # print ('Policy Action', np.around(action, 2))
 
                 # if test:
                 #     euc_distance = np.linalg.norm(ee_points.reshape(-1, 3), axis=1)
@@ -425,13 +415,12 @@ class AgentSCARAROS():
                 #                     f.write('\nRobot {0:d} Euclidean Distance to Goal {1:f} for: \n x: {4:d}, y: {4:f}, z: {4:f} '.format(robot_id, idx, np.around(ee_points[0],4),np.around(ee_points[1],4),np.around(ee_points[2],4)))
 
                 # Publish the action to the robot.
-                self._pub[robot_id].publish(self._get_ur_trajectory_message(action,
+                # self._pub.publish(self._get_ur_trajectory_message(action,
                                                                             # self._hyperparams['slowness'],
-                                                                            robot_id=robot_id))
+                                                                            # robot_id=robot_id))
 
-        #         # Only update the time_step after publishing.
-                time_step += 1
-                print("Updating time step")
+
+                # print("Updating time step")
         #
         #         # Build up the result data structure to return to GPS.
         #         result[ACTION].append(action)
@@ -450,7 +439,7 @@ class AgentSCARAROS():
         #         start = timer()
         #     # The subscriber is listening during this sleep() call, and
             # updating the time "continuously" (each hyperparams['period'].
-            self.r[robot_id].sleep()
+            # self.r[robot_id].sleep()
         #
         #
         # self.print_process(publish_frequencies, record_actions, condition, test=test, robot_id=robot_id)
@@ -460,6 +449,14 @@ class AgentSCARAROS():
         #         print('There is an infinite value in the results.')
         #     assert np.isfinite(value).all()
         # return result
+                self._time_lock.release()
+
+                rclpy.spin_once(node)
+                # sleep(0.05)
+                # node.destroy_node()
+                # rclpy.shutdown()
+                # Only update the time_step after publishing.
+                time_step += 1
     #
     #
     # def print_process(self, publish_frequencies, record_actions, condition, test=False, robot_id=0):
@@ -552,7 +549,7 @@ class AgentSCARAROS():
             angles[i] = state[i]
 
         # Update the jacobian by solving for the given angles.
-        self.jac_solver[robot_id].JntToJac(angles, jacobian)
+        self.jac_solver.JntToJac(angles, jacobian)
 
         # Initialize a numpy array to store the Jacobian.
         J = np.array([[jacobian[i, j] for j in range(jacobian.columns())] for i in range(jacobian.rows())])
@@ -562,51 +559,57 @@ class AgentSCARAROS():
         return ee_jacobians
 
 
-    def _process_observations(self, message, result, robot_id=0):
+    def _process_observations(self, message, agent, robot_id=0):
         """Helper fuinction only called by _run_trial to convert a ROS message
         to joint angles and velocities.
         Check for and handle the case where a message is either malformed
         or contains joint values in an order different from that expected
         in hyperparams['joint_order']"""
+        # print(message)
+        # len(message)
+        if not message:
+            print("Message is empty");
+        else:
+            # # Check if joint values are in the expected order and size.
+            if message.joint_names != agent['joint_order']:
+                # Check that the message is of same size as the expected message.
+                if len(message.joint_names) != len(agent['joint_order']):
+                    raise MSG_INVALID_JOINT_NAMES_DIFFER
 
+                # Check that all the expected joint values are present in a message.
+                if not all(map(lambda x,y: x in y, message.joint_names,
+                    [self._valid_joint_set[robot_id] for _ in range(len(message.joint_names))])):
+                    raise MSG_INVALID_JOINT_NAMES_DIFFER
+                    print("Joints differ")
 
-        # Check if joint values are in the expected order and size.
-        if message.joint_names != self._hyperparams['joint_order'][robot_id]:
+            return np.array(message.actual.positions + message.actual.velocities)
 
-            # Check that the message is of same size as the expected message.
-            if len(message.joint_names) != len(self._hyperparams['joint_order'][robot_id]):
-                raise MSG_INVALID_JOINT_NAMES_DIFFER
+                # # If necessary, reorder the joint values to conform to the order
+                # # expected in hyperparams['joint_order'].
+                # new_message = [None for _ in range(len(message))]
+                # print(new_message)
+                # for joint, index in message.joint_names.enumerate():
+                #     for state_type in self._hyperparams['state_types']:
+                #         new_message[self._valid_joint_index[robot_id][joint]] = message[state_type][index]
+                #
+                # message = new_message
+                # #
+                # # # Package the positions, velocities, amd accellerations of the joint angles.
+                # # for (state_type, state_category), state_value_vector in zip(
+                # #     # self.agent['state_types'].items(),
+                # #     [message.actual.positions, message.actual.velocities,
+                # #     message.actual.accelerations]):
+                # #
+                # #     # Assert that the length of the value vector matches the corresponding
+                # #     # number of dimensions from the hyperparameters file
+                # #     # assert len(state_value_vector) == self._hyperparams['sensor_dims'][state_category]
+                # #
+                # #     # Write the state value vector into the results dictionary keyed by its
+                # #     # state category
+                # #     result[state_category].append(state_value_vector)
+                # #     print(result)
+                # #
 
-            # Check that all the expected joint values are present in a message.
-            if not all(map(lambda x,y: x in y, message.joint_names,
-                [self._valid_joint_set[robot_id] for _ in range(len(message.joint_names))])):
-
-                raise MSG_INVALID_JOINT_NAMES_DIFFER
-
-            # If necessary, reorder the joint values to conform to the order
-            # expected in hyperparams['joint_order'].
-            new_message = [None for _ in range(len(message))]
-            for joint, index in message.joint_names.enumerate():
-                for state_type in self._hyperparams['state_types']:
-                    new_message[self._valid_joint_index[robot_id][joint]] = message[state_type][index]
-
-            message = new_message
-
-        # Package the positions, velocities, amd accellerations of the joint angles.
-        for (state_type, state_category), state_value_vector in zip(
-            self._hyperparams['state_types'].items(),
-            [message.actual.positions, message.actual.velocities,
-            message.actual.accelerations]):
-
-            # Assert that the length of the value vector matches the corresponding
-            # number of dimensions from the hyperparameters file
-            assert len(state_value_vector) == self._hyperparams['sensor_dims'][state_category]
-
-            # Write the state value vector into the results dictionary keyed by its
-            # state category
-            result[state_category].append(state_value_vector)
-
-        return np.array(result[JOINT_ANGLES][-1] + result[JOINT_VELOCITIES][-1])
 
     def _get_ur_trajectory_message(self, action, robot_id=0):
         """Helper function only called by reset() and run_trial().

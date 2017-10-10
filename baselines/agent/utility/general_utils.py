@@ -2,9 +2,9 @@
 import numpy as np
 import math
 
-import sys
-
-sys.path.append('/home/rkojcev/ros_python3/devel/lib')
+# import sys
+#
+# sys.path.append('/home/rkojcev/ros_python3/devel/lib')
 import PyKDL as kdl
 
 class BundleType(object):

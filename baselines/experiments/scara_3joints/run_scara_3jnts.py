@@ -2,21 +2,23 @@ import numpy as np
 import sys
 
 import argparse
+import copy
 
 sys.path.append('/home/rkojcev/devel/baselines')
-from baselines.agent.scara_arm import agent_scara
+from baselines.agent.scara_arm.agent_scara import AgentSCARAROS
 from baselines import logger
 from baselines.common import set_global_seeds
 
 from baselines.acktr.acktr_cont import learn
 from baselines.acktr.policies import GaussianMlpPolicy
 from baselines.acktr.value_functions import NeuralNetValueFunction
+from baselines.agent.utility.general_utils import get_ee_points, get_position
 
 
 # from gym import utils
 # from gym.envs.mujoco import mujoco_env
 
-class ScaraJntsEnv(agent_scara.AgentSCARAROS):
+class ScaraJntsEnv(AgentSCARAROS):
 
     # agent_scara.AgentSCARAROS.__init__(self, 'tests.xml')
 
@@ -27,9 +29,10 @@ class ScaraJntsEnv(agent_scara.AgentSCARAROS):
         JOINT_SUBSCRIBER = '/scara_controller/state'
         # where should the agent reach
         EE_POS_TGT = np.asmatrix([0.3325683, 0.0657366, 0.7112])
+        EE_ROT_TGT = np.asmatrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        EE_POINTS = np.asmatrix([[0, 0, 0]])
 
         #add here the joint names:
-        # Set constants for joints
         MOTOR1_JOINT = 'motor1'
         MOTOR2_JOINT = 'motor2'
         MOTOR3_JOINT = 'motor3'
@@ -63,18 +66,68 @@ class ScaraJntsEnv(agent_scara.AgentSCARAROS):
 
         JOINT_ORDER = [MOTOR1_JOINT, MOTOR2_JOINT, MOTOR3_JOINT]
         LINK_NAMES = [BASE, BASE_MOTOR,
-              SCARA_MOTOR1, SCARA_INSIDE_MOTOR1, SCARA_SUPPORT_MOTOR1, SCARA_BAR_MOTOR1, SCARA_FIXBAR_MOTOR1,
-              SCARA_MOTOR2, SCARA_INSIDE_MOTOR2, SCARA_SUPPORT_MOTOR2, SCARA_BAR_MOTOR2, SCARA_FIXBAR_MOTOR2,
-              SCARA_MOTOR3, SCARA_INSIDE_MOTOR3, SCARA_SUPPORT_MOTOR3,
-              EE_LINK]
+                      SCARA_MOTOR1, SCARA_INSIDE_MOTOR1, SCARA_SUPPORT_MOTOR1, SCARA_BAR_MOTOR1, SCARA_FIXBAR_MOTOR1,
+                      SCARA_MOTOR2, SCARA_INSIDE_MOTOR2, SCARA_SUPPORT_MOTOR2, SCARA_BAR_MOTOR2, SCARA_FIXBAR_MOTOR2,
+                      SCARA_MOTOR3, SCARA_INSIDE_MOTOR3, SCARA_SUPPORT_MOTOR3,
+                      EE_LINK]
         # Set end effector constants
         INITIAL_JOINTS = np.array([0, 0, 0, 0, 0, 0])
+        # where is your urdf?
         TREE_PATH = '/home/rkojcev/catkin_ws/src/scara_e1/scara_e1_description/urdf/scara_e1_3joints.urdf'
 
         STEP_COUNT = 100  # Typically 100.
+
+        # Set the number of seconds per step of a sample.
+        TIMESTEP = 0.01  # Typically 0.01.
+        # Set the number of timesteps per sample.
+        STEP_COUNT = 100  # Typically 100.
+        # Set the number of samples per condition.
+        SAMPLE_COUNT = 5  # Typically 5.
+        # set the number of conditions per iteration.
+        CONDITIONS = 1  # Typically 2 for Caffe and 1 for LQR.
+        # Set the number of trajectory iterations to collect.
+        ITERATIONS = 20  # Typically 10.
+
+        m_joint_order = copy.deepcopy(JOINT_ORDER)
+        m_link_names = copy.deepcopy(LINK_NAMES)
+        m_joint_publishers = copy.deepcopy(JOINT_PUBLISHER)
+        m_joint_subscribers = copy.deepcopy(JOINT_SUBSCRIBER)
+
+        ee_pos_tgt = EE_POS_TGT
+        ee_rot_tgt = EE_ROT_TGT
+
+            # Initialize target end effector position
+        ee_tgt = np.ndarray.flatten(get_ee_points(EE_POINTS, ee_pos_tgt, ee_rot_tgt).T)
+        # States to check in agent._process_observations.
+        # STATE_TYPES = {'positions': JOINT_ANGLES,
+        #        'velocities': JOINT_VELOCITIES}
+
+        agent = {
+            'type': AgentSCARAROS,
+            'dt': TIMESTEP,
+            # 'dU': SENSOR_DIMS[ACTION],
+            # 'conditions': common['conditions'],
+            'T': STEP_COUNT,
+            # 'x0': x0s,
+            'ee_points_tgt': ee_tgt,
+            # 'reset_conditions': reset_conditions,
+            # 'sensor_dims': SENSOR_DIMS,
+            'joint_order': m_joint_order,
+            'link_names': m_link_names,
+            # 'state_types': STATE_TYPES,
+            'tree_path': TREE_PATH,
+            'joint_publisher': m_joint_publishers,
+            'joint_subscriber': m_joint_subscribers,
+            # 'state_include': [JOINT_ANGLES, JOINT_VELOCITIES,
+            #                   END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES],
+            'end_effector_points': EE_POINTS,
+            # 'obs_include': [JOINT_ANGLES, JOINT_VELOCITIES, END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES],
+            # 'node_suffix': ROS_NODE_SUFFIX,
+            'num_samples': SAMPLE_COUNT,
+        }
         # utils.EzPickle.__init__(self)
-        agent_scara.AgentSCARAROS.__init__(self, TREE_PATH)
-        agent_scara.AgentSCARAROS._run_trial(self)
+        AgentSCARAROS.__init__(self, agent)
+        AgentSCARAROS._run_trial(self, agent)
 
     # def _step(self, a):
     #     vec = self.get_body_com("fingertip")-self.get_body_com("target")
