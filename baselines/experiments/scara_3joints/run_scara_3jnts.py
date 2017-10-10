@@ -24,6 +24,10 @@ class ScaraJntsEnv(AgentSCARAROS):
 
     def __init__(self):
         print("I am in init function")
+        # Too much hard coded stuff in here, especially the joint names and the motor names.
+        #TODO: see with KDL we can fetch the base and the end-effector for the FK kinematics.
+        # That way we eliminate all of the parameters. In here ideally we should only have the end goal and the names of the topics, regarding ROS
+        
         # Topics for the robot publisher and subscriber.
         JOINT_PUBLISHER = '/scara_controller/command'
         JOINT_SUBSCRIBER = '/scara_controller/state'
