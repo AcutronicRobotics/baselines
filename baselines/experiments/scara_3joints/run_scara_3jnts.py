@@ -1,6 +1,8 @@
 import numpy as np
 import sys
 
+import tensorflow as tf
+
 import argparse
 import copy
 
@@ -25,9 +27,9 @@ class ScaraJntsEnv(AgentSCARAROS):
     def __init__(self):
         print("I am in init function")
         # Too much hard coded stuff in here, especially the joint names and the motor names.
-        #TODO: see with KDL we can fetch the base and the end-effector for the FK kinematics.
+        # TODO: see with KDL we can fetch the base and the end-effector for the FK kinematics.
         # That way we eliminate all of the parameters. In here ideally we should only have the end goal and the names of the topics, regarding ROS
-        
+
         # Topics for the robot publisher and subscriber.
         JOINT_PUBLISHER = '/scara_controller/command'
         JOINT_SUBSCRIBER = '/scara_controller/state'
@@ -79,7 +81,12 @@ class ScaraJntsEnv(AgentSCARAROS):
         # where is your urdf?
         TREE_PATH = '/home/rkojcev/catkin_ws/src/scara_e1/scara_e1_description/urdf/scara_e1_3joints.urdf'
 
-        STEP_COUNT = 100  # Typically 100.
+        reset_condition = {
+            'initial_positions': INITIAL_JOINTS,
+             'initial_velocities': []
+        }
+
+        STEP_COUNT = 2  # Typically 100.
 
         # Set the number of seconds per step of a sample.
         TIMESTEP = 0.01  # Typically 0.01.
@@ -88,9 +95,9 @@ class ScaraJntsEnv(AgentSCARAROS):
         # Set the number of samples per condition.
         SAMPLE_COUNT = 5  # Typically 5.
         # set the number of conditions per iteration.
-        CONDITIONS = 1  # Typically 2 for Caffe and 1 for LQR.
         # Set the number of trajectory iterations to collect.
         ITERATIONS = 20  # Typically 10.
+        slowness = 10
 
         m_joint_order = copy.deepcopy(JOINT_ORDER)
         m_link_names = copy.deepcopy(LINK_NAMES)
@@ -106,67 +113,38 @@ class ScaraJntsEnv(AgentSCARAROS):
         # STATE_TYPES = {'positions': JOINT_ANGLES,
         #        'velocities': JOINT_VELOCITIES}
 
-        agent = {
+        self.agent = {
             'type': AgentSCARAROS,
             'dt': TIMESTEP,
-            # 'dU': SENSOR_DIMS[ACTION],
-            # 'conditions': common['conditions'],
             'T': STEP_COUNT,
-            # 'x0': x0s,
             'ee_points_tgt': ee_tgt,
-            # 'reset_conditions': reset_conditions,
-            # 'sensor_dims': SENSOR_DIMS,
             'joint_order': m_joint_order,
             'link_names': m_link_names,
-            # 'state_types': STATE_TYPES,
+            'slowness': slowness,
+            'reset_conditions': reset_condition,
             'tree_path': TREE_PATH,
             'joint_publisher': m_joint_publishers,
             'joint_subscriber': m_joint_subscribers,
-            # 'state_include': [JOINT_ANGLES, JOINT_VELOCITIES,
-            #                   END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES],
             'end_effector_points': EE_POINTS,
-            # 'obs_include': [JOINT_ANGLES, JOINT_VELOCITIES, END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES],
-            # 'node_suffix': ROS_NODE_SUFFIX,
             'num_samples': SAMPLE_COUNT,
         }
-        # utils.EzPickle.__init__(self)
-        AgentSCARAROS.__init__(self, agent)
-        AgentSCARAROS._run_trial(self, agent)
+        AgentSCARAROS.__init__(self)
+        AgentSCARAROS._step(self)
 
-    # def _step(self, a):
-    #     vec = self.get_body_com("fingertip")-self.get_body_com("target")
-    #     reward_dist = - np.linalg.norm(vec)
-    #     reward_ctrl = - np.square(a).sum()
-    #     reward = reward_dist + reward_ctrl
-    #     self.do_simulation(a, self.frame_skip)
-    #     ob = self._get_obs()
-    #     done = False
-    #     return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
-    #
-    # def viewer_setup(self):
-    #     self.viewer.cam.trackbodyid = 0
-    #
-    # def reset_model(self):
-    #     qpos = self.np_random.uniform(low=-0.1, high=0.1, size=self.model.nq) + self.init_qpos
-    #     while True:
-    #         self.goal = self.np_random.uniform(low=-.2, high=.2, size=2)
-    #         if np.linalg.norm(self.goal) < 2:
-    #             break
-    #     qpos[-2:] = self.goal
-    #     qvel = self.init_qvel + self.np_random.uniform(low=-.005, high=.005, size=self.model.nv)
-    #     qvel[-2:] = 0
-    #     self.set_state(qpos, qvel)
-    #     return self._get_obs()
-    #
-    # def _get_obs(self):
-    #     theta = self.model.data.qpos.flat[:2]
-    #     return np.concatenate([
-    #         np.cos(theta),
-    #         np.sin(theta),
-    #         self.model.data.qpos.flat[2:],
-    #         self.model.data.qvel.flat[:2],
-    #         self.get_body_com("fingertip") - self.get_body_com("target")
-    #     ])
+        # self.spec.timestep_limit = 0.1
+        env = self
+        with tf.Session(config=tf.ConfigProto()) as session:
+            ob_dim = env.observation_space.shape[0]
+            ac_dim = env.action_space.shape[0]
+            with tf.variable_scope("vf"):
+                vf = NeuralNetValueFunction(ob_dim, ac_dim)
+            with tf.variable_scope("pi"):
+                policy = GaussianMlpPolicy(ob_dim, ac_dim)
+
+            learn(env, policy=policy, vf=vf,
+                gamma=0.99, lam=0.97, timesteps_per_batch=2500,
+                desired_kl=0.002,
+                num_timesteps=1e6, animate=False)
 
 if __name__ == "__main__":
     ScaraJntsEnv()
@@ -174,3 +152,4 @@ if __name__ == "__main__":
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--env', help='environment ID', type=str, default="Reacher-v1")
     args = parser.parse_args()
+    # ScaraJntsEnv.train(args.env, num_timesteps=1e6, seed=args.seed)

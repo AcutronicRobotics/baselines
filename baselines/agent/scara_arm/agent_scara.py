@@ -6,6 +6,7 @@ import numpy as np # Used pretty much everywhere.
 import matplotlib.pyplot as plt
 import threading # Used for time locks to synchronize position data.
 import rclpy
+import tensorflow as tf
 # ROS Image message
 # from sensor_msgs.msg import Image
 # ROS Image message -> OpenCV2 image converter
@@ -53,12 +54,21 @@ class ROBOT_MADE_CONTACT_WITH_GAZEBO_GROUND_SO_RESTART_ROSLAUNCH(Exception):
 class AgentSCARAROS(object):
     """Connects the SCARA actions and Deep Learning algorithms."""
 
-    def __init__(self, agent, init_node=True): #hyperparams, , urdf_path, init_node=True
+    def __init__(self, init_node=True): #hyperparams, , urdf_path, init_node=True
         """Initialized Agent.
         init_node:   Whether or not to initialize a new ROS node."""
 
         print("I am in init")
         self._observation_msg = None
+        self.scale = None  # must be set from elsewhere based on observations
+        self.bias = None
+        self.x_idx = None
+        self.obs = None
+        self.reward = None
+        self.done = None
+        self.reward_dist = None
+        self.reward_ctrl = None
+        self.action_space = None
     #
     #     # Setup the main node.
         # if init_node:
@@ -73,11 +83,11 @@ class AgentSCARAROS(object):
         self._time_lock = threading.RLock()
         print("setting time clocks")
 
-        if agent['tree_path'].startswith("/"):
-            fullpath = agent['tree_path']
+        if self.agent['tree_path'].startswith("/"):
+            fullpath = self.agent['tree_path']
             print(fullpath)
         else:
-            fullpath = os.path.join(os.path.dirname(__file__), "assets", agent['tree_path'])
+            fullpath = os.path.join(os.path.dirname(__file__), "assets", self.agent['tree_path'])
         if not path.exists(fullpath):
             raise IOError("File %s does not exist" % fullpath)
 
@@ -93,9 +103,9 @@ class AgentSCARAROS(object):
         # Note that the xacro of the urdf is updated by hand.
         # Then the urdf must be compiled.
 
-        _, self.ur_tree = treeFromFile(agent['tree_path'])
+        _, self.ur_tree = treeFromFile(self.agent['tree_path'])
         # Retrieve a chain structure between the base and the start of the end effector.
-        self.ur_chain = self.ur_tree.getChain(agent['link_names'][0], agent['link_names'][-1])
+        self.ur_chain = self.ur_tree.getChain(self.agent['link_names'][0], self.agent['link_names'][-1])
         print(self.ur_chain)
     #     # Initialize a KDL Jacobian solver from the chain.
         self.jac_solver = ChainJntToJacSolver(self.ur_chain)
@@ -104,7 +114,8 @@ class AgentSCARAROS(object):
         print("after observations stale")
 
     #
-    #     self._currently_resetting = [False for _ in xrange(self.parallel_num)]
+        self._currently_resetting = [False for _ in range(1)]
+        self.reset_joint_angles = [None for _ in range(1)]
     #     # self._reset_cv = threading.Condition(self._time_lock)
     #
     #     self.condition_demo = [self._hyperparams.get('demo', False) for i in xrange(self._hyperparams['conditions'])]
@@ -229,13 +240,13 @@ class AgentSCARAROS(object):
     #
     #     return sample
 
-    def reset(self, condition, robot_id=0):
+    def reset(self, robot_id=0):
         """Not necessarily a helper function as it is inherited.
         Reset the agent for a particular experiment condition.
         condition: An index into hyperparams['reset_conditions']."""
 
         # Set the reset position as the initial position from agent hyperparams.
-        self.reset_joint_angles[robot_id] = self._hyperparams['reset_conditions'][condition][JOINT_ANGLES]
+        self.reset_joint_angles[robot_id] = self.agent['reset_conditions']['initial_positions']
 
         # Prepare the present positions to see how far off we are.
         now_position = np.asarray(self._observation_msg.actual.positions[:len(self.reset_joint_angles[robot_id])])
@@ -243,16 +254,23 @@ class AgentSCARAROS(object):
         # Raise error if robot has made contact with the ground in simulation.
         # This occurs because Gazebo sets joint angles beyond what they can possibly
         # be when the robot makes contact with the ground and "breaks."
-        # if max(abs(now_position)) >= 2*np.pi:
-        #     raise ROBOT_MADE_CONTACT_WITH_GAZEBO_GROUND_SO_RESTART_ROSLAUNCH
+        if max(abs(now_position)) >= 2*np.pi:
+            raise ROBOT_MADE_CONTACT_WITH_GAZEBO_GROUND_SO_RESTART_ROSLAUNCH
 
         # Wait until the arm is within epsilon of reset configuration.
+        action_msg = JointTrajectory()
         with self._time_lock:
-            self._currently_resetting[robot_id] = True
-            self._pub[robot_id].publish(self._get_ur_trajectory_message(self.reset_joint_angles[robot_id], robot_id=robot_id))
+            self._currently_resetting = True
+            action_msg = self._get_ur_trajectory_message(self.reset_joint_angles[robot_id], self.agent, robot_id=robot_id)
+            self._pub.publish(action_msg)
+            print(action_msg.points[0].positions)
+
             # self._reset_cv.wait()
 
-    def _run_trial(self, agent, time_to_run=5, test=False, robot_id=0):
+        return np.array(action_msg.points[0].positions)
+
+    def _step(self, time_to_run=5, test=False, robot_id=0):
+        global obs, reward, done, reward_dist, reward_ctrl
         # Initialize the data structure to be passed to GPS.
         # result = {param: [] for param in self.x_data_types +
         #                  self.obs_data_types + self.meta_data_types +
@@ -267,7 +285,7 @@ class AgentSCARAROS(object):
         start = timer()
         record_actions = [[] for i in range(6)]
         # sample_idx = self.condition_run_trial_times[condition]
-        while rclpy.ok(): #time_step < agent['T']
+        while time_step < self.agent['T']: #rclpy.ok():
 
             # print("Time step: ", time_step)
             # Only read and process ROS messages if they are fresh.
@@ -287,7 +305,7 @@ class AgentSCARAROS(object):
                 # Collect the end effector points and velocities in
                 # cartesian coordinates for the state.
                 # Collect the present joint angles and velocities from ROS for the state.
-                last_observations = self._process_observations(obs_message, agent)
+                last_observations = self._process_observations(obs_message, self.agent)
                 if last_observations is None:
                     print("last_observations is empty")
                 else:
@@ -295,15 +313,15 @@ class AgentSCARAROS(object):
                 # # # The Jacobians consist of a 6x6 matrix getting its from from
                 # # # (# joint angles) x (len[x, y, z] + len[roll, pitch, yaw])
                     ee_link_jacobians = self._get_jacobians(last_observations[:3])
-                    if agent['link_names'][-1] is None:
+                    if self.agent['link_names'][-1] is None:
                         print("End link is empty!!")
                     else:
-                        # print(agent['link_names'][-1])
+                        # print(self.agent['link_names'][-1])
                         trans, rot = forward_kinematics(self.ur_chain,
-                                                    agent['link_names'],
+                                                    self.agent['link_names'],
                                                     last_observations[:3],
-                                                    base_link=agent['link_names'][0],
-                                                    end_link=agent['link_names'][-1])
+                                                    base_link=self.agent['link_names'][0],
+                                                    end_link=self.agent['link_names'][-1])
                         # #
                         rotation_matrix = np.eye(4)
                         rotation_matrix[:3, :3] = rot
@@ -315,20 +333,18 @@ class AgentSCARAROS(object):
                         # I need this calculations for the new reward function, need to send them back to the run scara or calculate them here
                         current_quaternion = quaternion_from_matrix(rotation_matrix)
 
-                        current_ee_tgt = np.ndarray.flatten(get_ee_points(agent['end_effector_points'],
+                        current_ee_tgt = np.ndarray.flatten(get_ee_points(self.agent['end_effector_points'],
                                                                           trans,
                                                                           rot).T)
-                        ee_points = current_ee_tgt - agent['ee_points_tgt']
+                        ee_points = current_ee_tgt - self.agent['ee_points_tgt']
 
                         ee_points_jac_trans, _ = self._get_ee_points_jacobians(ee_link_jacobians,
-                                                                               agent['end_effector_points'],
+                                                                               self.agent['end_effector_points'],
                                                                                rot)
                         ee_velocities = self._get_ee_points_velocities(ee_link_jacobians,
-                                                                       agent['end_effector_points'],
+                                                                       self.agent['end_effector_points'],
                                                                        rot,
                                                                        last_observations[3:])
-
-                        print(ee_points)
 
                         #
                         # Concatenate the information that defines the robot state
@@ -337,200 +353,74 @@ class AgentSCARAROS(object):
                                       np.reshape(ee_points, -1),
                                       np.reshape(ee_velocities, -1),]
 
-                        obs = np.r_[np.reshape(last_observations, -1),
+                        self.observation_space = np.r_[np.reshape(last_observations, -1),
                                       np.reshape(ee_points, -1),
                                       np.reshape(ee_velocities, -1),]
+                        # change here actions if its not working
+                        self.action_space = last_observations[:6]
+                        vec = current_ee_tgt - self.agent['ee_points_tgt']
+                        # print(vec)
+                        self.reward_dist = - np.linalg.norm(vec)
+                        self.reward_ctrl = - np.square(self.action_space).sum()
+                        self.reward = self.reward_dist + self.reward_ctrl
+                        done = False
+
+
+                    self._pub.publish(self._get_ur_trajectory_message(self.action_space, self.agent))
+                    self._time_lock.release()
+
+                rclpy.spin_once(node)
+                time_step += 1
+        return self.observation_space, self.reward, self.done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
+
+                        # env.observation_space = obs
+                        # env.action_space = action
+                        # return env
+                        # return obs, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
+                        # print(reward_dist)
                 #
                 # # Stop the robot from moving past last position when sample is done.
                 # # If this is not called, the robot will complete its last action even
                 # # though it is no longer supposed to be exploring.
-                # if time_step == agent['T']-1:
-                #     action = last_observations[:6]
-                # else:
-                #     # add here the new policy optimization stuff
-                #     action = policy.act(state, obs, time_step, noise[time_step])
+                        # if time_step == agent['T']-1:
+                        #     action = last_observations[:6]
+                        # else:
+                        #     # add here the new policy optimization stuff, we need to figure out the action space.
+                        #     # In Mujoco is defined as the bounding box around the kinematic reachability of the robot. Can we do the same in here as well?
+                        #     # For now just hack it
+                        #     action = last_observations[:6]
                 # # Primary print statements of the action development.
                 # if self.parallel_num == 1:
                 #     print('\nTimestep', time_step)
                 # print ('Joint States ', np.around(state[:6], 2))
                 # print ('Policy Action', np.around(action, 2))
 
-                # if test:
-                #     euc_distance = np.linalg.norm(ee_points.reshape(-1, 3), axis=1)
-                #     if self.parallel_num == 1:
-                #         for idx in range(euc_distance.shape[0]):
-                #             print('   EE-Point {:d}:'.format(idx))
-                #             print('   Goal: ',  np.around(self._hyperparams['ee_points_tgt'][condition, 3 * idx: 3 * idx + 3], 4))
-                #             print('   Current Position: ', np.around(current_ee_tgt[3 * idx: 3 * idx + 3], 4))
-                #             print('   Manhattan Distance: ', np.around(ee_points.reshape(-1, 3)[idx], 4))
-                #             print('   Euclidean Distance is ', np.around(euc_distance[idx], 4))
-                #     elif time_step == self._hyperparams['T'] - 1:
-                #         with open(self.distance_files[robot_id], 'a') as f:
-                #             for idx in range(euc_distance.shape[0]):
-                #                 f.write('\n   EE-Point {:d}:'.format(idx))
-                #                 f.write('\n      Goal: {:s}'.format(str(np.around(
-                #                     self._hyperparams['ee_points_tgt'][condition, 3 * idx: 3 * idx + 3], 4))))
-                #                 f.write('\n      Current Position: {:s}'.format(str(np.around(current_ee_tgt[3 * idx: 3 * idx + 3], 4))))
-                #                 f.write('\n      Manhattan Distance: {:s}'.format(str(np.around(ee_points.reshape(-1, 3)[idx], 4))))
-                #                 f.write('\n      Euclidean Distance is {:s}'.format(str(np.around(euc_distance[idx], 4))))
-                #     for idx in range(6):
-                #         record_actions[idx].append(action[idx])
-                #     if time_step == self._hyperparams['T'] - 1:
-                #         test_pair = StartEndPoints(start=tuple(self._hyperparams['reset_conditions'][condition][JOINT_ANGLES]),
-                #                                    target=tuple(self._hyperparams['ee_points_tgt'][condition, :]))
-                #         self.test_points_record[test_pair] = euc_distance.mean()
-                # else:
-                #     if self.condition_demo[condition]:
-                #         demo_ee_points = (current_ee_tgt[:3] - self.demo_tgt_pos[condition][sample_idx]).reshape(-1, 3)
-                #         euc_distance = np.linalg.norm(demo_ee_points, axis=1)
-                #         demo_quaternion = current_quaternion - self.demo_tgt_quaternion[condition][sample_idx]
-                #         if self.parallel_num == 1:
-                #             print('    Demo: Euclidean Distance to Goal is {0:s}'.format(np.around(euc_distance, 4)))
-                #             print('    Demo: Difference of quaternion is {0:s}'.format(np.around(demo_quaternion, 4)))
-                #             print('    Demo: Target quaternion is {0:s}'.format(np.around(self.demo_tgt_quaternion[condition][sample_idx], 4)))
-                #         elif time_step == self._hyperparams['T'] - 1:
-                #             with open(self.distance_files[robot_id], 'a') as f:
-                #                 f.write('\n    Demo: Euclidean Distance to Goal is {0:s}'.format(np.around(euc_distance, 4)))
-                #                 f.write('\n    Demo: Difference of quaternion is {0:s}'.format(np.around(demo_quaternion, 4)))
-                #                 f.write('\n    Demo: Target quaternion is {0:s}'.format(
-                #                     np.around(self.demo_tgt_quaternion[condition][sample_idx], 4)))
-                #     else:
-                #         euc_distance = np.linalg.norm(ee_points.reshape(-1, 3), axis=1)
-                #         if self.parallel_num == 1:
-                #             for idx in range(euc_distance.shape[0]):
-                #                 print('\nRobot {0:d} Euclidean Distance to Goal for EE-Point {1:d} is {2:f}'.format(robot_id, idx, np.around(euc_distance[idx], 4)))
-                #                 print('\nRobot {0:d} Euclidean Distance to Goal {1:d} for (x,y,z)) is: '.format(robot_id, idx), np.around(ee_points,4))
-                #                 #save distances to file
-                #             with open(self.distance_files[robot_id], 'a') as f:
-                #                 for idx in range(euc_distance.shape[0]):
-                #                     for idx in range(euc_distance.shape[0]):
-                #                         # here we save each itteration
-                #                         f.write('\nRobot {0:d} Euclidean Distance to Goal for EE-Point {1:d} is {2:f}'.format(robot_id, idx, np.around(euc_distance[idx], 4)))
-                #                         f.write('\nRobot {0:d} Euclidean Distance to Goal {1:d} for: \n x: {4:f}, y: {4:f}, z: {4:f} '.format(robot_id, idx, np.around(ee_points[0],4),np.around(ee_points[1],4),np.around(ee_points[2],4)))
-                #         elif time_step == self._hyperparams['T'] - 1:
-                #             with open(self.distance_files[robot_id], 'a') as f:
-                #                 for idx in range(euc_distance.shape[0]):
-                #                     # here we can save last itteration
-                #                     f.write('\nRobot {0:d} Euclidean Distance to Goal for EE-Point {1:d} is {2:f}'.format(robot_id, idx, np.around(euc_distance[idx], 4)))
-                #                     f.write('\nRobot {0:d} Euclidean Distance to Goal {1:f} for: \n x: {4:d}, y: {4:f}, z: {4:f} '.format(robot_id, idx, np.around(ee_points[0],4),np.around(ee_points[1],4),np.around(ee_points[2],4)))
 
                 # Publish the action to the robot.
-                # self._pub.publish(self._get_ur_trajectory_message(action,
-                                                                            # self._hyperparams['slowness'],
-                                                                            # robot_id=robot_id))
 
 
-                # print("Updating time step")
-        #
-        #         # Build up the result data structure to return to GPS.
-        #         result[ACTION].append(action)
-        #         # result[END_EFFECTOR_ROTATIONS].append(quaternion)
-        #         result[END_EFFECTOR_POINTS].append(ee_points)
-        #         result[END_EFFECTOR_POINT_JACOBIANS].append(ee_points_jac_trans)
-        #         result[END_EFFECTOR_POINT_VELOCITIES].append(ee_velocities)
-        #
-        #         if time_step > 1:
-        #             end = timer()
-        #             elapsed_time = end-start
-        #             frequency = 1 / float(elapsed_time)
-        #             if self.parallel_num == 1:
-        #                 print('Time interval(s): {0:8.4f},  Hz: {1:8.4f}'.format(elapsed_time, frequency))
-        #             publish_frequencies.append(frequency)
-        #         start = timer()
-        #     # The subscriber is listening during this sleep() call, and
-            # updating the time "continuously" (each hyperparams['period'].
-            # self.r[robot_id].sleep()
-        #
-        #
-        # self.print_process(publish_frequencies, record_actions, condition, test=test, robot_id=robot_id)
-        # # Sanity check the results to make sure nothing is infinite.
-        # for value in result.values():
-        #     if not np.isfinite(value).all():
-        #         print('There is an infinite value in the results.')
-        #     assert np.isfinite(value).all()
-        # return result
-                self._time_lock.release()
 
-                rclpy.spin_once(node)
+
                 # sleep(0.05)
                 # node.destroy_node()
                 # rclpy.shutdown()
                 # Only update the time_step after publishing.
-                time_step += 1
+
+    # def train(env, num_timesteps, seed):
+    #     print("training")
     #
+    #     with tf.Session(config=tf.ConfigProto()) as session:
+    #         ob_dim = env.observation_space.shape[0]
+    #         ac_dim = env.action_space.shape[0]
+    #         with tf.variable_scope("vf"):
+    #             vf = NeuralNetValueFunction(ob_dim, ac_dim)
+    #             with tf.variable_scope("pi"):
+    #                 policy = GaussianMlpPolicy(ob_dim, ac_dim)
     #
-    # def print_process(self, publish_frequencies, record_actions, condition, test=False, robot_id=0):
-    #     n, min_max, mean, var, skew, kurt = stats.describe(publish_frequencies)
-    #     median = np.median(publish_frequencies)
-    #     first_quantile = np.percentile(publish_frequencies, 25)
-    #     third_quantile = np.percentile(publish_frequencies, 75)
-    #     print('\nRobot ' + str(robot_id) +' Publisher frequencies statistics:')
-    #     print('Robot ' + str(robot_id) +' Minimum: {0:9.4f} Maximum: {1:9.4f}'.format(min_max[0], min_max[1]))
-    #     print('Robot ' + str(robot_id) +' Mean: {0:9.4f}'.format(mean))
-    #     print('Robot ' + str(robot_id) +' Variance: {0:9.4f}'.format(var))
-    #     print('Robot ' + str(robot_id) +' Median: {0:9.4f}'.format(median))
-    #     print('Robot ' + str(robot_id) +' First quantile: {0:9.4f}'.format(first_quantile))
-    #     print('Robot ' + str(robot_id) +' Third quantile: {0:9.4f}'.format(third_quantile))
-    #     if test:
-    #         # fig, axes = plt.subplots(2, 3)
-    #         # for idx in range(6):
-    #         #     axes[idx / 3, idx % 3].plot(record_actions[idx])
-    #         #     axes[idx / 3, idx % 3].set_title(self._hyperparams['joint_order'][robot_id][idx])
-    #         # figname = self._hyperparams['control_plot_dir'] + str('{:04d}'.format(condition)) + '.png'
-    #         # plt.savefig(figname, bbox_inches='tight')
-    #         print '\n============================='
-    #         print '============================='
-    #         print('Condition {:d} Testing finished'.format(condition))
-    #         print '============================='
-    #         print '============================='
-    #
-    #         if condition == self._hyperparams['ee_points_tgt'].shape[0] - 1:
-    #             print '\n============================='
-    #             print '============================='
-    #             print('    All Testings finished    ')
-    #             print '============================='
-    #             print '============================='
-    #             np.set_printoptions(precision=4, suppress=True)
-    #             distances = np.array(self.test_points_record.values())
-    #             threshold = 0.01
-    #             percentage = (distances <= threshold).sum() / float(distances.size) * 100.0
-    #             percentage_double_thr = (distances <= 2 * threshold).sum() / float(distances.size) * 100.0
-    #             for key, value in self.test_points_record.items():
-    #                 starting_point = np.array(key.start)
-    #                 target_point = np.array(key.target).reshape(-1, 3)
-    #                 distance = value
-    #                 print '  Starting joint angles: ', starting_point
-    #                 for idx in range(target_point.shape[0]):
-    #                     print '      Target point: ', target_point[idx]
-    #                 print('    Average distance: {:6.4f}'.format(distance))
-    #
-    #             print("\nConditions with final distance greater than {0:.3f}m:".format(threshold))
-    #             for key, value in self.test_points_record.items():
-    #                 starting_point = np.array(key.start)
-    #                 target_point = np.array(key.target).reshape(-1, 3)
-    #                 distance = value
-    #                 if distance > threshold:
-    #                     print '  Starting joint angles: ', starting_point
-    #                     for idx in range(target_point.shape[0]):
-    #                         print '      Target point: ', target_point[idx]
-    #                     print('    Average distance: {:6.4f}'.format(distance))
-    #
-    #             n, min_max, mean, var, skew, kurt = stats.describe(distances)
-    #             median = np.median(distances)
-    #             first_quantile = np.percentile(distances, 25)
-    #             third_quantile = np.percentile(distances, 75)
-    #             print('\nDistances statistics:')
-    #             print("Minimum: {0:9.4f} Maximum: {1:9.4f}".format(min_max[0], min_max[1]))
-    #             print("Mean: {0:9.4f}".format(mean))
-    #             print("Variance: {0:9.4f}".format(var))
-    #             print("Median: {0:9.4f}".format(median))
-    #             print("First quantile: {0:9.4f}".format(first_quantile))
-    #             print("Third quantile: {0:9.4f}".format(third_quantile))
-    #             print("Percentage of conditions with final distance less than {0:.3f}m is: {1:4.2f} %".format(threshold, percentage))
-    #             print("Percentage of conditions with final distance less than {0:.3f}m is: {1:4.2f} %".format(2 * threshold, percentage_double_thr))
-    #
-    #
-    #
+    #                 learn(env, policy=policy, vf=vf,
+    #                 gamma=0.99, lam=0.97, timesteps_per_batch=2500,
+    #                 desired_kl=0.002,
+    #                 num_timesteps=num_timesteps, animate=False)
     def _get_jacobians(self, state, robot_id=0):
         """Produce a Jacobian from the urdf that maps from joint angles to x, y, z.
         This makes a 6x6 matrix from 6 joint angles to x, y, z and 3 angles.
@@ -611,22 +501,23 @@ class AgentSCARAROS(object):
                 # #
 
 
-    def _get_ur_trajectory_message(self, action, robot_id=0):
+    def _get_ur_trajectory_message(self, action, agent, robot_id=0):
         """Helper function only called by reset() and run_trial().
         Wraps an action vector of joint angles into a JointTrajectory message.
         The velocities, accelerations, and effort do not control the arm motion"""
 
         # Set up a trajectory message to publish.
         action_msg = JointTrajectory()
-        action_msg.joint_names = self._hyperparams['joint_order'][robot_id]
+        action_msg.joint_names = agent['joint_order']
 
         # Create a point to tell the robot to move to.
         target = JointTrajectoryPoint()
-        target.positions = action
+        action_float = [float(i) for i in action]
+        target.positions = action_float
 
         # These times determine the speed at which the robot moves:
         # it tries to reach the specified target position in 'slowness' time.
-        target.time_from_start = rospy.Duration(slowness)
+        target.time_from_start.sec = agent['slowness']
 
         # Package the single point into a trajectory of points with length 1.
         action_msg.points = [target]
