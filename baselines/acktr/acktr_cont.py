@@ -23,9 +23,12 @@ def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
     ac_dists = []
     logps = []
     rewards = []
+    # print("max_pathlength", max_pathlength)
     for _ in range(max_pathlength):
         if animate:
             env.render()
+        # print("obs:",ob)
+        # print("Prev obs:", prev_ob)
         state = np.concatenate([ob, prev_ob], -1)
         obs.append(state)
         ac, ac_dist, logp = policy.act(state)
@@ -35,8 +38,9 @@ def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
         prev_ob = np.copy(ob)
         # scaled_ac = env.action_space.low + (ac + 1.) * 0.5 * (env.action_space.high - env.action_space.low)
         # scaled_ac = np.clip(scaled_ac, env.action_space.low, env.action_space.high)
-        scaled_ac = 0 + (ac + 1.) * 0.5 * (10 - 0)
-        scaled_ac = np.clip(scaled_ac, 0, 10)
+        # ---- Risto Hack --- We need to find kinematic rechability over here, or hope this number is good enough
+        scaled_ac = -80 + (ac + 1.) * 0.5 * (80 - 0)
+        scaled_ac = np.clip(scaled_ac, -80, 80)
         ob, rew, done, _ = env.step(scaled_ac)
         if obfilter: ob = obfilter(ob)
         rewards.append(rew)

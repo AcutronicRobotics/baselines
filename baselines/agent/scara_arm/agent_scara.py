@@ -7,14 +7,6 @@ import matplotlib.pyplot as plt
 import threading # Used for time locks to synchronize position data.
 import rclpy
 import tensorflow as tf
-# ROS Image message
-# from sensor_msgs.msg import Image
-# ROS Image message -> OpenCV2 image converter
-# from cv_bridge import CvBridge, CvBridgeError
-# # OpenCV2 for saving an image
-# import cv2
-# Instantiate CvBridge
-# bridge = CvBridge()
 
 from timeit import default_timer as timer
 from scipy import stats
@@ -23,24 +15,22 @@ import geometry_msgs.msg
 
 from os import path
 from rclpy.qos import QoSProfile, qos_profile_sensor_data
-# from gps.agent.agent import Agent # GPS class needed to inherit from.
-# from gps.agent.agent_utils import setup, generate_noise # setup used to get hyperparams in init and generate_noise to get noise in sample.
-# from gps.agent.config import AGENT_UR_ROS # Parameters needed for config in __init__.
-# from gps.sample.sample import Sample # Used to build a Sample object for each sample taken.
 from baselines.agent.utility.general_utils import forward_kinematics, get_ee_points, rotation_from_matrix, \
     get_rotation_matrix,quaternion_from_matrix# For getting points and velocities.
 # from gps.algorithm.policy.controller_prior_gmm import ControllerPriorGMM
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint # Used for publishing scara joint angles.
 from control_msgs.msg import JointTrajectoryControllerState
 from std_msgs.msg import String
-# from gps.proto.gps_pb2 import JOINT_ANGLES, JOINT_VELOCITIES, ACTION, END_EFFECTOR_POINTS, \
-    # END_EFFECTOR_POINT_JACOBIANS, END_EFFECTOR_POINT_VELOCITIES, END_EFFECTOR_ROTATIONS, IMAGE_FEAT, RGB_IMAGE, NOISE
+
 from baselines.agent.scara_arm.tree_urdf import treeFromFile # For KDL Jacobians
 from PyKDL import Jacobian, Chain, ChainJntToJacSolver, JntArray # For KDL Jacobians
 from collections import namedtuple
 import scipy.ndimage as sp_ndimage
 from functools import partial
-import PyKDL as kdl
+
+from baselines.agent.utility import error
+from baselines.agent.utility import seeding
+
 StartEndPoints = namedtuple('StartEndPoints', ['start', 'target'])
 class MSG_INVALID_JOINT_NAMES_DIFFER(Exception):
     """Error object exclusively raised by _process_observations."""
@@ -116,28 +106,8 @@ class AgentSCARAROS(object):
     #
         self._currently_resetting = [False for _ in range(1)]
         self.reset_joint_angles = [None for _ in range(1)]
-    #     # self._reset_cv = threading.Condition(self._time_lock)
-    #
-    #     self.condition_demo = [self._hyperparams.get('demo', False) for i in xrange(self._hyperparams['conditions'])]
-    #     self.controller_demo = [self._hyperparams.get('demo', False) for i in xrange(self._hyperparams['conditions'])]
-    #     self.condition_run_trial_times = [0 for i in range(self._hyperparams['conditions'])]
-    #
-    #     conds_splited = np.array_split(range(self._hyperparams['conditions']), self.parallel_num)
-    #     self._conds = [conds.tolist() for conds in conds_splited if conds.size]
-    #     if not self.parallel_on_conditions:
-    #         num_samples_splited = np.array_split(range(self._hyperparams['num_samples']), self.parallel_num)
-    #         self._samples_idx = [num_samples.tolist() for num_samples in num_samples_splited if num_samples.size]
 
-    #     # self._sub = [rospy.Subscriber("/camera1/image_raw",
-    #     #                               Image,
-    #     #                               self._callbacks_image[ii]) for ii in xrange(self.parallel_num)]
-    #
-    #     # self.get_demo_samples()
-    #     self.period = self._hyperparams['dt']
-    #     self.r = [rospy.Rate(1. / self.period) for _ in xrange(self.parallel_num)]
-    #     self.r[0].sleep()
-    #
-    #
+        self.seed()
     def _observation_callback(self, message):
         # print("Trying to call observation msgs")
         # global _observation_msg
@@ -164,81 +134,6 @@ class AgentSCARAROS(object):
         #             self._currently_resetting[robot_id] = False
                     # self._reset_cv.notify_all()
         # print('robot call back ', robot_id)
-    #
-    #
-    #
-    # def sample(self, policy, condition, sample_idx=0, verbose=True, save=True, noisy=True, test=False):
-    #     """This is the main method run when the Agent object is called by GPS.
-    #     Draws a sample from the environment, using the specified policy and
-    #     under the specified condition.
-    #     If "save" is True, then append the sample object of type Sample to
-    #     self._samples[condition].
-    #     TensorFlow is not yet implemented (FIXME)."""
-    #     if not test:
-    #         if self.parallel_on_conditions:
-    #             robot_id = [condition in cond for cond in self._conds].index(True)
-    #         else:
-    #             robot_id = [sample_idx in sap for sap in self._samples_idx].index(True)
-    #     else:
-    #         robot_id = [condition in cond for cond in self._conds].index(True)
-    #     with open(self.distance_files[robot_id], 'a') as f:
-    #         f.write('\n\n===========================')
-    #         if test:
-    #             f.write("\n     Testing")
-    #         f.write('\nCondition {0:d} Sample {1:d}'.format(condition, sample_idx))
-    #     # Reset the arm to initial configuration at start of each new trial.
-    #     self.reset(condition, robot_id=robot_id)
-    #     time.sleep(3)
-    #     # Generate noise to be used in the policy object to compute next state.
-    #     # if noisy:
-    #     #     noise = generate_noise(self.T, self.dU, self._hyperparams)
-    #     # else:
-    #     #     noise = np.zeros((self.T, self.dU))
-    #
-    #     # Execute the trial.
-    #     sample_data = self._run_trial(policy, noise,
-    #                                   condition=condition,
-    #                                   time_to_run=self._hyperparams['trial_timeout'],
-    #                                   test=test,
-    #                                   robot_id=robot_id)
-    #
-    #     # Write trial data into sample object.
-    #     sample = Sample(self)
-    #     for sensor_id, data in sample_data.items():
-    #         sample.set(sensor_id, np.asarray(data))
-    #     sample.set(NOISE, noise)
-    #
-    #     # sample.set(IMAGE_FEAT, np.zeros((self._hyperparams['sensor_dims'][IMAGE_FEAT],)), t=0)
-    #
-    #     # kk= a
-    #     # Save the sample to the data structure. This is controlled by gps_main.py.
-    #     self._time_lock.acquire(True)
-    #     if save:
-    #         self._samples[condition].append(sample)
-    #     self._time_lock.release()
-    #
-    #
-    #     if self.condition_demo[condition] and \
-    #                     self.condition_run_trial_times[condition] < self._hyperparams['num_samples']:
-    #         self._time_lock.acquire(True)
-    #         self.condition_run_trial_times[condition] += 1
-    #         if self.condition_run_trial_times[condition] == self._hyperparams['num_samples']:
-    #             self.condition_demo[condition] = False
-    #         self._time_lock.release()
-    #
-    #     if not self.condition_demo[condition] and self.controller_demo[condition]:
-    #         if not self._hyperparams.get('no_controller_learning', False):
-    #             self._time_lock.acquire(True)
-    #             sample_list = self.get_samples(condition, -self._hyperparams['num_samples'])
-    #             X = sample_list.get_X()
-    #             U = sample_list.get_U()
-    #             self._time_lock.release()
-    #             self.controller_prior_gmm[condition].update(X, U)
-    #             policy.K, policy.k, policy.pol_covar, policy.chol_pol_covar, policy.inv_pol_covar\
-    #                 = self.controller_prior_gmm[condition].fit(X, U)
-    #             self.controller_demo[condition] = False
-    #
-    #     return sample
 
     def reset(self, robot_id=0):
         """Not necessarily a helper function as it is inherited.
@@ -263,14 +158,33 @@ class AgentSCARAROS(object):
             self._currently_resetting = True
             action_msg = self._get_ur_trajectory_message(self.reset_joint_angles[robot_id], self.agent, robot_id=robot_id)
             self._pub.publish(action_msg)
-            print(action_msg.points[0].positions)
+            time.sleep(self.agent['slowness'])
+            # # action_msg.points[0].positions = [np.random.uniform(low=-3.14159, high=3.14159) for i in range(3)]
+            # # print(action_msg)
+            #
+            # # print(action_msg.points[0].positions)
+            #
+            # a = np.zeros(3, dtype=np.float) + np.random.uniform(low=-3.14159, high=3.14159, size=3)
+            # b = np.zeros(3, dtype=np.float)  + np.random.uniform(low=-3.14159, high=3.14159, size=3)
+            # # print("action_msgs",action_msg.points[0].positions)
+            # # print("np array",np.array([a, b]))
+            # # print("uniform", [np.random.uniform(low=-180.005, high=180.005) for i in range(6)])
+            #
+            # # action_msg.points[0].positions = [np.random.uniform(low=-3.14159, high=3.14159) for i in range(3)]
+            # # action_msg.points[0].positions = [0.0, 0.0, 0.0]
+            # # print(action_msg.points[0].positions.shape)
+            print(self.observation_space)
 
-            # self._reset_cv.wait()
+            c =self.observation_space
+        #
+        #
+        return c
+    def seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
 
-        return np.array(action_msg.points[0].positions)
-
-    def _step(self, time_to_run=5, test=False, robot_id=0):
-        global obs, reward, done, reward_dist, reward_ctrl
+    def step(self, time_to_run=5, test=False, robot_id=0):
+        # global obs, reward, done, reward_dist, reward_ctrl
         # Initialize the data structure to be passed to GPS.
         # result = {param: [] for param in self.x_data_types +
         #                  self.obs_data_types + self.meta_data_types +
@@ -279,7 +193,7 @@ class AgentSCARAROS(object):
         # Carry out the number of trials specified in the hyperparams.  The
         # index is only called by the policy.act method.  We use a while
         # instead of for because we do not want to iterate if we do not publish.
-        print("I am in run trial function.")
+        # print("I am in run trial function.")
         time_step = 0
         publish_frequencies = []
         start = timer()
@@ -312,7 +226,7 @@ class AgentSCARAROS(object):
                 # # # Get Jacobians from present joint angles and KDL trees
                 # # # The Jacobians consist of a 6x6 matrix getting its from from
                 # # # (# joint angles) x (len[x, y, z] + len[roll, pitch, yaw])
-                    ee_link_jacobians = self._get_jacobians(last_observations[:3])
+                    ee_link_jacobians = self._get_jacobians(last_observations)
                     if self.agent['link_names'][-1] is None:
                         print("End link is empty!!")
                     else:
@@ -344,7 +258,7 @@ class AgentSCARAROS(object):
                         ee_velocities = self._get_ee_points_velocities(ee_link_jacobians,
                                                                        self.agent['end_effector_points'],
                                                                        rot,
-                                                                       last_observations[3:])
+                                                                       last_observations)
 
                         #
                         # Concatenate the information that defines the robot state
@@ -356,8 +270,9 @@ class AgentSCARAROS(object):
                         self.observation_space = np.r_[np.reshape(last_observations, -1),
                                       np.reshape(ee_points, -1),
                                       np.reshape(ee_velocities, -1),]
-                        # change here actions if its not working
-                        self.action_space = last_observations[:6]
+                        # change here actions if its not working, I need to figure out how to 1. Get current action, run some policy on it and then send it back to the robot to simulate.
+                        # how do you generate actions in OpenAI
+                        self.action_space = last_observations
                         vec = current_ee_tgt - self.agent['ee_points_tgt']
                         # print(vec)
                         self.reward_dist = - np.linalg.norm(vec)
@@ -366,61 +281,14 @@ class AgentSCARAROS(object):
                         done = False
 
 
-                    self._pub.publish(self._get_ur_trajectory_message(self.action_space, self.agent))
+                    self._pub.publish(self._get_ur_trajectory_message(self.observation_space[:3], self.agent))
+                    # time.sleep(self.agent['slowness'])
                     self._time_lock.release()
 
                 rclpy.spin_once(node)
                 time_step += 1
         return self.observation_space, self.reward, self.done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
 
-                        # env.observation_space = obs
-                        # env.action_space = action
-                        # return env
-                        # return obs, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
-                        # print(reward_dist)
-                #
-                # # Stop the robot from moving past last position when sample is done.
-                # # If this is not called, the robot will complete its last action even
-                # # though it is no longer supposed to be exploring.
-                        # if time_step == agent['T']-1:
-                        #     action = last_observations[:6]
-                        # else:
-                        #     # add here the new policy optimization stuff, we need to figure out the action space.
-                        #     # In Mujoco is defined as the bounding box around the kinematic reachability of the robot. Can we do the same in here as well?
-                        #     # For now just hack it
-                        #     action = last_observations[:6]
-                # # Primary print statements of the action development.
-                # if self.parallel_num == 1:
-                #     print('\nTimestep', time_step)
-                # print ('Joint States ', np.around(state[:6], 2))
-                # print ('Policy Action', np.around(action, 2))
-
-
-                # Publish the action to the robot.
-
-
-
-
-                # sleep(0.05)
-                # node.destroy_node()
-                # rclpy.shutdown()
-                # Only update the time_step after publishing.
-
-    # def train(env, num_timesteps, seed):
-    #     print("training")
-    #
-    #     with tf.Session(config=tf.ConfigProto()) as session:
-    #         ob_dim = env.observation_space.shape[0]
-    #         ac_dim = env.action_space.shape[0]
-    #         with tf.variable_scope("vf"):
-    #             vf = NeuralNetValueFunction(ob_dim, ac_dim)
-    #             with tf.variable_scope("pi"):
-    #                 policy = GaussianMlpPolicy(ob_dim, ac_dim)
-    #
-    #                 learn(env, policy=policy, vf=vf,
-    #                 gamma=0.99, lam=0.97, timesteps_per_batch=2500,
-    #                 desired_kl=0.002,
-    #                 num_timesteps=num_timesteps, animate=False)
     def _get_jacobians(self, state, robot_id=0):
         """Produce a Jacobian from the urdf that maps from joint angles to x, y, z.
         This makes a 6x6 matrix from 6 joint angles to x, y, z and 3 angles.
@@ -472,7 +340,7 @@ class AgentSCARAROS(object):
                     raise MSG_INVALID_JOINT_NAMES_DIFFER
                     print("Joints differ")
 
-            return np.array(message.actual.positions + message.actual.velocities)
+            return np.array(message.actual.positions) # + message.actual.velocities
 
                 # # If necessary, reorder the joint values to conform to the order
                 # # expected in hyperparams['joint_order'].

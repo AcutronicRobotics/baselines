@@ -77,7 +77,7 @@ class ScaraJntsEnv(AgentSCARAROS):
                       SCARA_MOTOR3, SCARA_INSIDE_MOTOR3, SCARA_SUPPORT_MOTOR3,
                       EE_LINK]
         # Set end effector constants
-        INITIAL_JOINTS = np.array([0, 0, 0, 0, 0, 0])
+        INITIAL_JOINTS = np.array([0, 0, 0])
         # where is your urdf?
         TREE_PATH = '/home/rkojcev/catkin_ws/src/scara_e1/scara_e1_description/urdf/scara_e1_3joints.urdf'
 
@@ -97,7 +97,7 @@ class ScaraJntsEnv(AgentSCARAROS):
         # set the number of conditions per iteration.
         # Set the number of trajectory iterations to collect.
         ITERATIONS = 20  # Typically 10.
-        slowness = 10
+        slowness = 2
 
         m_joint_order = copy.deepcopy(JOINT_ORDER)
         m_link_names = copy.deepcopy(LINK_NAMES)
@@ -129,10 +129,32 @@ class ScaraJntsEnv(AgentSCARAROS):
             'num_samples': SAMPLE_COUNT,
         }
         AgentSCARAROS.__init__(self)
-        AgentSCARAROS._step(self)
+        AgentSCARAROS.step(self)
 
         # self.spec.timestep_limit = 0.1
         env = self
+        parser = argparse.ArgumentParser(description='Run Gazebo benchmark.')
+        parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+        args = parser.parse_args()
+        self.train(env,num_timesteps=1e6, seed=args.seed)
+        # with tf.Session(config=tf.ConfigProto()) as session:
+        #     ob_dim = env.observation_space.shape[0]
+        #     ac_dim = env.action_space.shape[0]
+        #     print("observation_space",env.observation_space)
+        #     print("action_space", env.action_space)
+        #     with tf.variable_scope("vf"):
+        #         vf = NeuralNetValueFunction(ob_dim, ac_dim)
+        #     with tf.variable_scope("pi"):
+        #         policy = GaussianMlpPolicy(ob_dim, ac_dim)
+        #
+        #     learn(env, policy=policy, vf=vf,
+        #         gamma=0.99, lam=0.97, timesteps_per_batch=2500, #2500
+        #         desired_kl=0.002,
+        #         num_timesteps=5, animate=False) # 1e6
+    def train(self,env, num_timesteps, seed):
+        set_global_seeds(seed)
+        env.seed(seed)
+
         with tf.Session(config=tf.ConfigProto()) as session:
             ob_dim = env.observation_space.shape[0]
             ac_dim = env.action_space.shape[0]
@@ -144,7 +166,8 @@ class ScaraJntsEnv(AgentSCARAROS):
             learn(env, policy=policy, vf=vf,
                 gamma=0.99, lam=0.97, timesteps_per_batch=2500,
                 desired_kl=0.002,
-                num_timesteps=1e6, animate=False)
+                num_timesteps=num_timesteps, animate=False)
+
 
 if __name__ == "__main__":
     ScaraJntsEnv()
