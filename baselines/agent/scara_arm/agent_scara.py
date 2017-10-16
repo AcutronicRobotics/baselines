@@ -117,8 +117,8 @@ class AgentSCARAROS(object):
         # Here idially we should find the control range of the robot. Unfortunatelly in ROS/KDL there is nothing like this.
         # I have tested this with the mujoco enviroment and the output is always same low[-1.,-1.], high[1.,1.]
         #bounds = self.model.actuator_ctrlrange.copy()
-        low = -1.0 * np.ones(self.ur_chain.getNrOfJoints())#bounds[:, 0]
-        high = np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 1]
+        low = -5.0 * np.ones(self.ur_chain.getNrOfJoints())#bounds[:, 0]
+        high = 5.0 * np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 1]
         print("Action spaces: ", low, high)
         self.action_space = spaces.Box(low, high)
 
@@ -192,13 +192,20 @@ class AgentSCARAROS(object):
             # # action_msg.points[0].positions = [np.random.uniform(low=-3.14159, high=3.14159) for i in range(3)]
             # # action_msg.points[0].positions = [0.0, 0.0, 0.0]
             # # print(action_msg.points[0].positions.shape)
-            # print(self.observation_space)
-
-            c =self.ob
-            print("reset model: ",c)
+            a = np.squeeze(np.asarray(self.agent['end_effector_velocities']))
+            print("self.agent['end_effector_velocities']: ", a)
+            print("self.agent['end_effector_points']: ", np.reshape(self.agent['end_effector_points'], -1))
+            print("np.reshape(np.array(action_msg.points[0].positions), -1): ", np.reshape(np.array(action_msg.points[0].positions), -1))
+            reset = np.r_[np.reshape(np.array(action_msg.points[0].positions), -1),
+                            np.reshape(np.squeeze(np.asarray(self.agent['end_effector_points'])), -1),
+                            np.reshape(np.squeeze(np.asarray(self.agent['end_effector_velocities'])), -1)]
+        #     # c = action_msg.points[0].positions
+        #     print("reset model: ",reset)
+        #     print("obs model: ",self.ob)
+        #     c = reset
+        # #
         #
-        #
-        return c
+        return reset
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
@@ -279,6 +286,7 @@ class AgentSCARAROS(object):
                         self.ob = np.r_[np.reshape(last_observations, -1),
                                       np.reshape(ee_points, -1),
                                       np.reshape(ee_velocities, -1),]
+                        # print("self.ob: ", self.ob)
                         # change here actions if its not working, I need to figure out how to 1. Get current action, run some policy on it and then send it back to the robot to simulate.
                         # how do you generate actions in OpenAI
                         # self.action_space = last_observations
@@ -290,7 +298,7 @@ class AgentSCARAROS(object):
                         done = False
 
                     # observation_space2 = [3.14,2.17,-3.14]
-                    self._pub.publish(self._get_ur_trajectory_message(self.ob[:3], self.agent))
+                    # self._pub.publish(self._get_ur_trajectory_message(self.action[:3], self.agent))
                     # print("In step:", time_step, ". Action space:", self.action_space[:3])
                     # time.sleep(0.1)
                     self._time_lock.release()

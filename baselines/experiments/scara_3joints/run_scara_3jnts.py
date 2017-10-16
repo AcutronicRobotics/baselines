@@ -37,6 +37,7 @@ class ScaraJntsEnv(AgentSCARAROS):
         EE_POS_TGT = np.asmatrix([0.3325683, 0.0657366, 0.7112])
         EE_ROT_TGT = np.asmatrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
         EE_POINTS = np.asmatrix([[0, 0, 0]])
+        EE_VELOCITIES = np.asmatrix([[0, 0, 0]])
 
         #add here the joint names:
         MOTOR1_JOINT = 'motor1'
@@ -126,6 +127,7 @@ class ScaraJntsEnv(AgentSCARAROS):
             'joint_publisher': m_joint_publishers,
             'joint_subscriber': m_joint_subscribers,
             'end_effector_points': EE_POINTS,
+            'end_effector_velocities': EE_VELOCITIES,
             'num_samples': SAMPLE_COUNT,
         }
         AgentSCARAROS.__init__(self)
