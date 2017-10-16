@@ -192,10 +192,10 @@ class AgentSCARAROS(object):
             # # action_msg.points[0].positions = [np.random.uniform(low=-3.14159, high=3.14159) for i in range(3)]
             # # action_msg.points[0].positions = [0.0, 0.0, 0.0]
             # # print(action_msg.points[0].positions.shape)
-            a = np.squeeze(np.asarray(self.agent['end_effector_velocities']))
-            print("self.agent['end_effector_velocities']: ", a)
-            print("self.agent['end_effector_points']: ", np.reshape(self.agent['end_effector_points'], -1))
-            print("np.reshape(np.array(action_msg.points[0].positions), -1): ", np.reshape(np.array(action_msg.points[0].positions), -1))
+            # a = np.squeeze(np.asarray(self.agent['end_effector_velocities']))
+            # print("self.agent['end_effector_velocities']: ", a)
+            # print("self.agent['end_effector_points']: ", np.reshape(self.agent['end_effector_points'], -1))
+            # print("np.reshape(np.array(action_msg.points[0].positions), -1): ", np.reshape(np.array(action_msg.points[0].positions), -1))
             reset = np.r_[np.reshape(np.array(action_msg.points[0].positions), -1),
                             np.reshape(np.squeeze(np.asarray(self.agent['end_effector_points'])), -1),
                             np.reshape(np.squeeze(np.asarray(self.agent['end_effector_velocities'])), -1)]
