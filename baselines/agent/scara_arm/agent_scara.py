@@ -30,6 +30,7 @@ from functools import partial
 
 from baselines.agent.utility import error
 from baselines.agent.utility import seeding
+from baselines.agent.utility import spaces
 
 StartEndPoints = namedtuple('StartEndPoints', ['start', 'target'])
 class MSG_INVALID_JOINT_NAMES_DIFFER(Exception):
@@ -96,7 +97,8 @@ class AgentSCARAROS(object):
         _, self.ur_tree = treeFromFile(self.agent['tree_path'])
         # Retrieve a chain structure between the base and the start of the end effector.
         self.ur_chain = self.ur_tree.getChain(self.agent['link_names'][0], self.agent['link_names'][-1])
-        print(self.ur_chain)
+        print("nr of jnts: ", self.ur_chain.getNrOfJoints())
+
     #     # Initialize a KDL Jacobian solver from the chain.
         self.jac_solver = ChainJntToJacSolver(self.ur_chain)
         print(self.jac_solver)
@@ -106,6 +108,23 @@ class AgentSCARAROS(object):
     #
         self._currently_resetting = [False for _ in range(1)]
         self.reset_joint_angles = [None for _ in range(1)]
+
+        # taken from mujoco in OpenAi how to initialize observation space and action space.
+        observation, _reward, done, _info = self._step(np.zeros(self.ur_chain.getNrOfJoints()))
+        assert not done
+        self.obs_dim = observation.size
+        # print(observation, _reward)
+        # Here idially we should find the control range of the robot. Unfortunatelly in ROS/KDL there is nothing like this.
+        # I have tested this with the mujoco enviroment and the output is always same low[-1.,-1.], high[1.,1.]
+        #bounds = self.model.actuator_ctrlrange.copy()
+        low = -1.0 * np.ones(self.ur_chain.getNrOfJoints())#bounds[:, 0]
+        high = np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 1]
+        print("Action spaces: ", low, high)
+        self.action_space = spaces.Box(low, high)
+
+        high = np.inf*np.ones(self.obs_dim)
+        low = -high
+        self.observation_space = spaces.Box(low, high)
 
         self.seed()
     def _observation_callback(self, message):
@@ -158,7 +177,7 @@ class AgentSCARAROS(object):
             self._currently_resetting = True
             action_msg = self._get_ur_trajectory_message(self.reset_joint_angles[robot_id], self.agent, robot_id=robot_id)
             self._pub.publish(action_msg)
-            time.sleep(self.agent['slowness'])
+            # time.sleep(self.agent['slowness'])
             # # action_msg.points[0].positions = [np.random.uniform(low=-3.14159, high=3.14159) for i in range(3)]
             # # print(action_msg)
             #
@@ -173,9 +192,10 @@ class AgentSCARAROS(object):
             # # action_msg.points[0].positions = [np.random.uniform(low=-3.14159, high=3.14159) for i in range(3)]
             # # action_msg.points[0].positions = [0.0, 0.0, 0.0]
             # # print(action_msg.points[0].positions.shape)
-            print(self.observation_space)
+            # print(self.observation_space)
 
-            c =self.observation_space
+            c =self.ob
+            print("reset model: ",c)
         #
         #
         return c
@@ -183,23 +203,15 @@ class AgentSCARAROS(object):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def step(self, time_to_run=5, test=False, robot_id=0):
-        # global obs, reward, done, reward_dist, reward_ctrl
-        # Initialize the data structure to be passed to GPS.
-        # result = {param: [] for param in self.x_data_types +
-        #                  self.obs_data_types + self.meta_data_types +
-        #                  [END_EFFECTOR_POINT_JACOBIANS, ACTION]}
-
-        # Carry out the number of trials specified in the hyperparams.  The
-        # index is only called by the policy.act method.  We use a while
-        # instead of for because we do not want to iterate if we do not publish.
-        # print("I am in run trial function.")
+    def _step(self, action, robot_id=0):
         time_step = 0
         publish_frequencies = []
         start = timer()
         record_actions = [[] for i in range(6)]
         # sample_idx = self.condition_run_trial_times[condition]
         while time_step < self.agent['T']: #rclpy.ok():
+        # if rclpy.ok(): #rclpy.ok():
+            # print("ROS is ok moving on.")
 
             # print("Time step: ", time_step)
             # Only read and process ROS messages if they are fresh.
@@ -212,9 +224,6 @@ class AgentSCARAROS(object):
                 # Make it so that subscriber's thread observation callback
                 # must be called before publishing again.
                 self._observations_stale[robot_id] = False
-                # self._observations_stale_image[robot_id] = True
-                # Release the lock after all dynamic variables have been updated.
-
 
                 # Collect the end effector points and velocities in
                 # cartesian coordinates for the state.
@@ -267,27 +276,124 @@ class AgentSCARAROS(object):
                                       np.reshape(ee_points, -1),
                                       np.reshape(ee_velocities, -1),]
 
-                        self.observation_space = np.r_[np.reshape(last_observations, -1),
+                        self.ob = np.r_[np.reshape(last_observations, -1),
                                       np.reshape(ee_points, -1),
                                       np.reshape(ee_velocities, -1),]
                         # change here actions if its not working, I need to figure out how to 1. Get current action, run some policy on it and then send it back to the robot to simulate.
                         # how do you generate actions in OpenAI
-                        self.action_space = last_observations
+                        # self.action_space = last_observations
                         vec = current_ee_tgt - self.agent['ee_points_tgt']
                         # print(vec)
                         self.reward_dist = - np.linalg.norm(vec)
-                        self.reward_ctrl = - np.square(self.action_space).sum()
+                        self.reward_ctrl = - np.square(action).sum()
                         self.reward = self.reward_dist + self.reward_ctrl
                         done = False
 
-
-                    self._pub.publish(self._get_ur_trajectory_message(self.observation_space[:3], self.agent))
-                    # time.sleep(self.agent['slowness'])
+                    # observation_space2 = [3.14,2.17,-3.14]
+                    self._pub.publish(self._get_ur_trajectory_message(self.ob[:3], self.agent))
+                    # print("In step:", time_step, ". Action space:", self.action_space[:3])
+                    # time.sleep(0.1)
                     self._time_lock.release()
 
                 rclpy.spin_once(node)
                 time_step += 1
-        return self.observation_space, self.reward, self.done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
+        return self.ob, self.reward, self.done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
+    def step(self, action, robot_id=0):
+        time_step = 0
+        publish_frequencies = []
+        start = timer()
+        record_actions = [[] for i in range(6)]
+        # sample_idx = self.condition_run_trial_times[condition]
+        #while time_step < self.agent['T']: #rclpy.ok():
+        if rclpy.ok(): #rclpy.ok():
+            # print("ROS is ok moving on.")
+
+            # print("Time step: ", time_step)
+            # Only read and process ROS messages if they are fresh.
+            if self._observations_stale[robot_id] is False:
+                # # Acquire the lock to prevent the subscriber thread from
+                # # updating times or observation messages.
+                self._time_lock.acquire(True)
+                obs_message = self._observation_msg
+
+                # Make it so that subscriber's thread observation callback
+                # must be called before publishing again.
+                self._observations_stale[robot_id] = False
+
+                # Collect the end effector points and velocities in
+                # cartesian coordinates for the state.
+                # Collect the present joint angles and velocities from ROS for the state.
+                last_observations = self._process_observations(obs_message, self.agent)
+                if last_observations is None:
+                    print("last_observations is empty")
+                else:
+                # # # Get Jacobians from present joint angles and KDL trees
+                # # # The Jacobians consist of a 6x6 matrix getting its from from
+                # # # (# joint angles) x (len[x, y, z] + len[roll, pitch, yaw])
+                    ee_link_jacobians = self._get_jacobians(last_observations)
+                    if self.agent['link_names'][-1] is None:
+                        print("End link is empty!!")
+                    else:
+                        # print(self.agent['link_names'][-1])
+                        trans, rot = forward_kinematics(self.ur_chain,
+                                                    self.agent['link_names'],
+                                                    last_observations[:3],
+                                                    base_link=self.agent['link_names'][0],
+                                                    end_link=self.agent['link_names'][-1])
+                        # #
+                        rotation_matrix = np.eye(4)
+                        rotation_matrix[:3, :3] = rot
+                        rotation_matrix[:3, 3] = trans
+                        # angle, dir, _ = rotation_from_matrix(rotation_matrix)
+                        # #
+                        # current_quaternion = np.array([angle]+dir.tolist())#
+
+                        # I need this calculations for the new reward function, need to send them back to the run scara or calculate them here
+                        current_quaternion = quaternion_from_matrix(rotation_matrix)
+
+                        current_ee_tgt = np.ndarray.flatten(get_ee_points(self.agent['end_effector_points'],
+                                                                          trans,
+                                                                          rot).T)
+                        ee_points = current_ee_tgt - self.agent['ee_points_tgt']
+
+                        ee_points_jac_trans, _ = self._get_ee_points_jacobians(ee_link_jacobians,
+                                                                               self.agent['end_effector_points'],
+                                                                               rot)
+                        ee_velocities = self._get_ee_points_velocities(ee_link_jacobians,
+                                                                       self.agent['end_effector_points'],
+                                                                       rot,
+                                                                       last_observations)
+
+                        #
+                        # Concatenate the information that defines the robot state
+                        # vector, typically denoted asrobot_id 'x'.
+                        state = np.r_[np.reshape(last_observations, -1),
+                                      np.reshape(ee_points, -1),
+                                      np.reshape(ee_velocities, -1),]
+
+                        self.ob = np.r_[np.reshape(last_observations, -1),
+                                      np.reshape(ee_points, -1),
+                                      np.reshape(ee_velocities, -1),]
+                        # change here actions if its not working, I need to figure out how to 1. Get current action, run some policy on it and then send it back to the robot to simulate.
+                        # how do you generate actions in OpenAI
+                        # self.action_space = last_observations
+                        vec = current_ee_tgt - self.agent['ee_points_tgt']
+                        # print(vec)
+                        self.reward_dist = - np.linalg.norm(vec)
+                        self.reward_ctrl = - np.square(action).sum()
+                        self.reward = self.reward_dist + self.reward_ctrl
+                        done = False
+
+                    # observation_space2 = [3.14,2.17,-3.14]
+                    self._pub.publish(self._get_ur_trajectory_message(action[:3], self.agent))
+                    print("action is: ",action[:3])
+                    # print("In step:", time_step, ". Action space:", self.action_space[:3])
+                    # time.sleep(0.1)
+                    self._time_lock.release()
+
+                rclpy.spin_once(node)
+                time_step += 1
+        return self.ob, self.reward, self.done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
 
     def _get_jacobians(self, state, robot_id=0):
         """Produce a Jacobian from the urdf that maps from joint angles to x, y, z.

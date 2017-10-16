@@ -78,7 +78,7 @@ class ScaraJntsEnv(AgentSCARAROS):
                       EE_LINK]
         # Set end effector constants
         INITIAL_JOINTS = np.array([0, 0, 0])
-        # where is your urdf?
+        # where is your urdf? We load here the 3 joints.... In the agent_scara we need to generalize it for joints depending on the input urdf
         TREE_PATH = '/home/rkojcev/catkin_ws/src/scara_e1/scara_e1_description/urdf/scara_e1_3joints.urdf'
 
         reset_condition = {
@@ -129,9 +129,11 @@ class ScaraJntsEnv(AgentSCARAROS):
             'num_samples': SAMPLE_COUNT,
         }
         AgentSCARAROS.__init__(self)
-        AgentSCARAROS.step(self)
+        # AgentSCARAROS.step(self)
 
-        # self.spec.timestep_limit = 0.1
+        self.spec = {'timestep_limit': 5,
+        'reward_threshold':  950.0,}
+
         env = self
         parser = argparse.ArgumentParser(description='Run Gazebo benchmark.')
         parser.add_argument('--seed', help='RNG seed', type=int, default=0)
