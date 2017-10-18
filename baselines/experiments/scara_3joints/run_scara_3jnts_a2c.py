@@ -11,10 +11,9 @@ from baselines.agent.scara_arm.agent_scara import AgentSCARAROS
 from baselines import logger
 from baselines.common import set_global_seeds
 
-from baselines.acktr.acktr_cont import learn
-from baselines.acktr.policies import GaussianMlpPolicy
-from baselines.acktr.value_functions import NeuralNetValueFunction
+from baselines.a2c.a2c import learn
 from baselines.agent.utility.general_utils import get_ee_points, get_position
+from baselines.a2c.policies import CnnPolicy, LstmPolicy, LnLstmPolicy
 
 
 # from gym import utils
@@ -128,6 +127,7 @@ class ScaraJntsEnv(AgentSCARAROS):
             'num_samples': SAMPLE_COUNT,
         }
         AgentSCARAROS.__init__(self)
+        # AgentSCARAROS.step(self)
 
         self.spec = {'timestep_limit': 5,
         'reward_threshold':  950.0,}
@@ -136,25 +136,25 @@ class ScaraJntsEnv(AgentSCARAROS):
         parser = argparse.ArgumentParser(description='Run Gazebo benchmark.')
         parser.add_argument('--seed', help='RNG seed', type=int, default=0)
         args = parser.parse_args()
-        self.train(env,num_timesteps=3e6, seed=args.seed)
+        self.train(env,num_timesteps=1e6, seed=args.seed)
 
     def train(self,env, num_timesteps, seed):
         set_global_seeds(seed)
         env.seed(seed)
 
-        with tf.Session(config=tf.ConfigProto()) as session:
-            ob_dim = env.observation_space.shape[0]
-            ac_dim = env.action_space.shape[0]
-            with tf.variable_scope("vf"):
-                vf = NeuralNetValueFunction(ob_dim, ac_dim)
-            with tf.variable_scope("pi"):
-                policy = GaussianMlpPolicy(ob_dim, ac_dim)
-
-            learn(env, policy=policy, vf=vf,
-                gamma=0.99, lam=0.97, timesteps_per_batch=15000,
-                desired_kl=0.02,
-                num_timesteps=num_timesteps, animate=False)
+        if policy == 'cnn':
+            policy_fn = CnnPolicy
+        elif policy == 'lstm':
+            policy_fn = LstmPolicy
+        elif policy == 'lnlstm':
+            policy_fn = LnLstmPolicy
+        learn(policy_fn, env, seed, total_timesteps=num_timesteps, lrschedule=lrschedule)
 
 
 if __name__ == "__main__":
     ScaraJntsEnv()
+    parser = argparse.ArgumentParser(description='Run Gazebo benchmark.')
+    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+    parser.add_argument('--env', help='environment ID', type=str, default="Reacher-v1")
+    args = parser.parse_args()
+    # ScaraJntsEnv.train(args.env, num_timesteps=1e6, seed=args.seed)

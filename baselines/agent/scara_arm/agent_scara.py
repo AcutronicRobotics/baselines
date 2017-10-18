@@ -117,8 +117,8 @@ class AgentSCARAROS(object):
         # Here idially we should find the control range of the robot. Unfortunatelly in ROS/KDL there is nothing like this.
         # I have tested this with the mujoco enviroment and the output is always same low[-1.,-1.], high[1.,1.]
         #bounds = self.model.actuator_ctrlrange.copy()
-        low = -5.0 * np.ones(self.ur_chain.getNrOfJoints())#bounds[:, 0]
-        high = 5.0 * np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 1]
+        low = -np.pi/2.0 * np.ones(self.ur_chain.getNrOfJoints())#bounds[:, 0]
+        high = np.pi/2.0 * np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 1]
         print("Action spaces: ", low, high)
         self.action_space = spaces.Box(low, high)
 
@@ -205,6 +205,7 @@ class AgentSCARAROS(object):
         #     c = reset
         # #
         #
+        # reset = self.ob
         return reset
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -249,7 +250,7 @@ class AgentSCARAROS(object):
                         # print(self.agent['link_names'][-1])
                         trans, rot = forward_kinematics(self.ur_chain,
                                                     self.agent['link_names'],
-                                                    last_observations[:3],
+                                                    last_observations,
                                                     base_link=self.agent['link_names'][0],
                                                     end_link=self.agent['link_names'][-1])
                         # #
@@ -279,28 +280,23 @@ class AgentSCARAROS(object):
                         #
                         # Concatenate the information that defines the robot state
                         # vector, typically denoted asrobot_id 'x'.
-                        state = np.r_[np.reshape(last_observations, -1),
-                                      np.reshape(ee_points, -1),
-                                      np.reshape(ee_velocities, -1),]
+                        # state = np.r_[np.reshape(last_observations, -1),
+                        #               np.reshape(ee_points, -1),
+                        #               np.reshape(ee_velocities, -1),]
 
                         self.ob = np.r_[np.reshape(last_observations, -1),
                                       np.reshape(ee_points, -1),
                                       np.reshape(ee_velocities, -1),]
-                        # print("self.ob: ", self.ob)
                         # change here actions if its not working, I need to figure out how to 1. Get current action, run some policy on it and then send it back to the robot to simulate.
                         # how do you generate actions in OpenAI
                         # self.action_space = last_observations
                         vec = current_ee_tgt - self.agent['ee_points_tgt']
                         # print(vec)
-                        self.reward_dist = - np.linalg.norm(vec)
+                        self.reward_dist = -10.0 * np.linalg.norm(vec)
                         self.reward_ctrl = - np.square(action).sum()
                         self.reward = self.reward_dist + self.reward_ctrl
                         done = False
 
-                    # observation_space2 = [3.14,2.17,-3.14]
-                    # self._pub.publish(self._get_ur_trajectory_message(self.action[:3], self.agent))
-                    # print("In step:", time_step, ". Action space:", self.action_space[:3])
-                    # time.sleep(0.1)
                     self._time_lock.release()
 
                 rclpy.spin_once(node)
@@ -387,20 +383,33 @@ class AgentSCARAROS(object):
                         # self.action_space = last_observations
                         vec = current_ee_tgt - self.agent['ee_points_tgt']
                         # print(vec)
-                        self.reward_dist = - np.linalg.norm(vec)
-                        self.reward_ctrl = - np.square(action).sum()
-                        self.reward = self.reward_dist + self.reward_ctrl
+                        #if the error is smaller than 5 mm give good reward, if not give negative reward
+                        if np.linalg.norm(ee_points) < 0.005:
+                            self.reward_dist = 1000.0 * np.linalg.norm(ee_points)#- 10.0 * np.linalg.norm(ee_points)
+                            self.reward_ctrl = np.linalg.norm(action)#np.square(action).sum()
+                            # done = True
+                            print("self.reward_dist: ", self.reward_dist, "self.reward_ctrl: ", self.reward_ctrl)
+                        else:
+                            self.reward_dist = - np.linalg.norm(ee_points)
+                            self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
+                        # self.reward = 2.0 * self.reward_dist + 0.01 * self.reward_ctrl
+                        self.reward = self.reward_dist
                         done = False
+                        # print("reward: ", self.reward)
+                        # print("distance to goal: ", ee_points)
+                        # print("self.reward_ctrl: ", self.reward_ctrl)
+                        # print("eucledean e: ", ee_points)
 
                     # observation_space2 = [3.14,2.17,-3.14]
+                    # print(action[:3])
                     self._pub.publish(self._get_ur_trajectory_message(action[:3], self.agent))
-                    print("action is: ",action[:3])
+                    # print("action is: ",action[:3])
                     # print("In step:", time_step, ". Action space:", self.action_space[:3])
                     # time.sleep(0.1)
                     self._time_lock.release()
 
                 rclpy.spin_once(node)
-                time_step += 1
+                # time_step += 1
         return self.ob, self.reward, self.done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
 
     def _get_jacobians(self, state, robot_id=0):

@@ -36,9 +36,6 @@ def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
         prev_ob = np.copy(ob)
         scaled_ac = env.action_space.low + (ac + 1.) * 0.5 * (env.action_space.high - env.action_space.low)
         scaled_ac = np.clip(scaled_ac, env.action_space.low, env.action_space.high)
-        # ---- Risto Hack --- We need to find kinematic rechability over here, or hope this number is good enough
-        # scaled_ac = -5.0 + (ac + 1.) * 0.5 * (5.0 - 0)
-        # scaled_ac = np.clip(scaled_ac, -5.0, 5.0)
         ob, rew, done, _ = env.step(scaled_ac)
         if obfilter: ob = obfilter(ob)
         rewards.append(rew)
@@ -54,7 +51,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
 
     obfilter = ZFilter(env.observation_space.shape)
     # Risto change
-    max_pathlength = 2#env.spec['timestep_limit']
+    max_pathlength = 1000#env.spec['timestep_limit']
     stepsize = tf.Variable(initial_value=np.float32(np.array(0.03)), name='stepsize')
     inputs, loss, loss_sampled = policy.update_info
     optim = kfac.KfacOptimizer(learning_rate=stepsize, cold_lr=stepsize*(1-0.9), momentum=0.9, kfac_update=2,\
