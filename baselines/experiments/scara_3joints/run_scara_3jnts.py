@@ -129,8 +129,8 @@ class ScaraJntsEnv(AgentSCARAROS):
         }
         AgentSCARAROS.__init__(self)
 
-        self.spec = {'timestep_limit': 5,
-        'reward_threshold':  950.0,}
+        # self.spec = {'timestep_limit': 5,
+        # 'reward_threshold':  950.0,}
 
         env = self
         parser = argparse.ArgumentParser(description='Run Gazebo benchmark.')

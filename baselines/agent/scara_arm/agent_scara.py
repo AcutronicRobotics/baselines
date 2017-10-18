@@ -60,16 +60,17 @@ class AgentSCARAROS(object):
         self.reward_dist = None
         self.reward_ctrl = None
         self.action_space = None
+        # to work with baselines a2c need this ones
+        self.num_envs = 1
+        self.remotes = [0]
     #
     #     # Setup the main node.
-        # if init_node:
         print("Init ros node")
         rclpy.init(args=None)
         node = rclpy.create_node('robot_ai_node')
         global node
-        self._pub = node.create_publisher(JointTrajectory,'/scara_controller/command')
-        # self._callbacks = partial(self._observation_callback, robot_id=0)
-        self._sub = node.create_subscription(JointTrajectoryControllerState, '/scara_controller/state', self._observation_callback, qos_profile=qos_profile_sensor_data)
+        self._pub = node.create_publisher(JointTrajectory,self.agent['joint_publisher'])
+        self._sub = node.create_subscription(JointTrajectoryControllerState, self.agent['joint_subscriber'], self._observation_callback, qos_profile=qos_profile_sensor_data)
         assert self._sub
         self._time_lock = threading.RLock()
         print("setting time clocks")
@@ -93,7 +94,6 @@ class AgentSCARAROS(object):
         # Initialize a tree structure from the robot urdf.
         # Note that the xacro of the urdf is updated by hand.
         # Then the urdf must be compiled.
-
         _, self.ur_tree = treeFromFile(self.agent['tree_path'])
         # Retrieve a chain structure between the base and the start of the end effector.
         self.ur_chain = self.ur_tree.getChain(self.agent['link_names'][0], self.agent['link_names'][-1])
@@ -116,7 +116,7 @@ class AgentSCARAROS(object):
         # print(observation, _reward)
         # Here idially we should find the control range of the robot. Unfortunatelly in ROS/KDL there is nothing like this.
         # I have tested this with the mujoco enviroment and the output is always same low[-1.,-1.], high[1.,1.]
-        #bounds = self.model.actuator_ctrlrange.copy()
+        # bounds = self.model.actuator_ctrlrange.copy()
         low = -np.pi/2.0 * np.ones(self.ur_chain.getNrOfJoints())#bounds[:, 0]
         high = np.pi/2.0 * np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 1]
         print("Action spaces: ", low, high)
@@ -126,7 +126,7 @@ class AgentSCARAROS(object):
         low = -high
         self.observation_space = spaces.Box(low, high)
 
-        self.seed()
+        # self.seed()
     def _observation_callback(self, message):
         # print("Trying to call observation msgs")
         # global _observation_msg
@@ -176,7 +176,7 @@ class AgentSCARAROS(object):
         with self._time_lock:
             self._currently_resetting = True
             action_msg = self._get_ur_trajectory_message(self.reset_joint_angles[robot_id], self.agent, robot_id=robot_id)
-            self._pub.publish(action_msg)
+            # self._pub.publish(action_msg)
             # time.sleep(self.agent['slowness'])
             # # action_msg.points[0].positions = [np.random.uniform(low=-3.14159, high=3.14159) for i in range(3)]
             # # print(action_msg)
@@ -196,21 +196,24 @@ class AgentSCARAROS(object):
             # print("self.agent['end_effector_velocities']: ", a)
             # print("self.agent['end_effector_points']: ", np.reshape(self.agent['end_effector_points'], -1))
             # print("np.reshape(np.array(action_msg.points[0].positions), -1): ", np.reshape(np.array(action_msg.points[0].positions), -1))
+            # print("action_msg.points[0].positions: ", action_msg.points[0].positions)
+
+            # here we reset the position to 0 in each joint. Probably I need to check this function and compare it to mujoco openai
             reset = np.r_[np.reshape(np.array(action_msg.points[0].positions), -1),
                             np.reshape(np.squeeze(np.asarray(self.agent['end_effector_points'])), -1),
                             np.reshape(np.squeeze(np.asarray(self.agent['end_effector_velocities'])), -1)]
-        #     # c = action_msg.points[0].positions
-        #     print("reset model: ",reset)
+        # #     # c = action_msg.points[0].positions
+        # #     print("reset model: ",reset)
         #     print("obs model: ",self.ob)
-        #     c = reset
+        # #     c = reset
+        # # #
         # #
-        #
         # reset = self.ob
         return reset
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
-
+    # initialize the steps
     def _step(self, action, robot_id=0):
         time_step = 0
         publish_frequencies = []
@@ -301,6 +304,7 @@ class AgentSCARAROS(object):
 
                 rclpy.spin_once(node)
                 time_step += 1
+                print("time_step: ", time_step)
         return self.ob, self.reward, self.done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
     def step(self, action, robot_id=0):
         time_step = 0
@@ -381,18 +385,20 @@ class AgentSCARAROS(object):
                         # change here actions if its not working, I need to figure out how to 1. Get current action, run some policy on it and then send it back to the robot to simulate.
                         # how do you generate actions in OpenAI
                         # self.action_space = last_observations
-                        vec = current_ee_tgt - self.agent['ee_points_tgt']
+                        # not needed since we have it in ee_points
+                        # vec = current_ee_tgt - self.agent['ee_points_tgt']
                         # print(vec)
                         #if the error is smaller than 5 mm give good reward, if not give negative reward
                         if np.linalg.norm(ee_points) < 0.005:
                             self.reward_dist = 1000.0 * np.linalg.norm(ee_points)#- 10.0 * np.linalg.norm(ee_points)
                             self.reward_ctrl = np.linalg.norm(action)#np.square(action).sum()
-                            # done = True
+                            done = True
                             print("self.reward_dist: ", self.reward_dist, "self.reward_ctrl: ", self.reward_ctrl)
                         else:
                             self.reward_dist = - np.linalg.norm(ee_points)
                             self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
                         # self.reward = 2.0 * self.reward_dist + 0.01 * self.reward_ctrl
+                        #removed the control reward, maybe we should add it later.
                         self.reward = self.reward_dist
                         done = False
                         # print("reward: ", self.reward)

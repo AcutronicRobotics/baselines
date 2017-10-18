@@ -135,10 +135,16 @@ class ScaraJntsEnv(AgentSCARAROS):
         env = self
         parser = argparse.ArgumentParser(description='Run Gazebo benchmark.')
         parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+        parser.add_argument('--policy', help='Policy architecture', choices=['cnn', 'lstm', 'lnlstm'], default='cnn')
+        parser.add_argument('--lrschedule', help='Learning rate schedule', choices=['constant', 'linear'], default='constant')
+        parser.add_argument('--million_frames', help='How many frames to train (/ 1e6). '
+                'This number gets divided by 4 due to frameskip', type=int, default=40)
         args = parser.parse_args()
-        self.train(env,num_timesteps=1e6, seed=args.seed)
+        self.train(env, num_frames=1e6 * args.million_frames, seed=args.seed,
+                policy=args.policy, lrschedule=args.lrschedule, num_cpu=16)
 
-    def train(self,env, num_timesteps, seed):
+    def train(self,env, num_frames, seed, policy, lrschedule, num_cpu):
+        num_timesteps = int(num_frames / 4 * 1.1)
         set_global_seeds(seed)
         env.seed(seed)
 
@@ -153,8 +159,3 @@ class ScaraJntsEnv(AgentSCARAROS):
 
 if __name__ == "__main__":
     ScaraJntsEnv()
-    parser = argparse.ArgumentParser(description='Run Gazebo benchmark.')
-    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('--env', help='environment ID', type=str, default="Reacher-v1")
-    args = parser.parse_args()
-    # ScaraJntsEnv.train(args.env, num_timesteps=1e6, seed=args.seed)

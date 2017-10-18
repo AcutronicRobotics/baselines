@@ -48,6 +48,7 @@ def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
 
 def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
     animate=False, callback=None, desired_kl=0.002):
+    logger.basicConfig(filename = 'test.log' )
 
     obfilter = ZFilter(env.observation_space.shape)
     # Risto change
