@@ -97,7 +97,7 @@ class AgentSCARAROS(object):
         _, self.ur_tree = treeFromFile(self.agent['tree_path'])
         # Retrieve a chain structure between the base and the start of the end effector.
         self.ur_chain = self.ur_tree.getChain(self.agent['link_names'][0], self.agent['link_names'][-1])
-        print("nr of jnts: ", self.ur_chain.getNrOfJoints())
+        print("Nr. of jnts: ", self.ur_chain.getNrOfJoints())
 
     #     # Initialize a KDL Jacobian solver from the chain.
         self.jac_solver = ChainJntToJacSolver(self.ur_chain)
@@ -117,7 +117,7 @@ class AgentSCARAROS(object):
         # Here idially we should find the control range of the robot. Unfortunatelly in ROS/KDL there is nothing like this.
         # I have tested this with the mujoco enviroment and the output is always same low[-1.,-1.], high[1.,1.]
         # bounds = self.model.actuator_ctrlrange.copy()
-        low = -np.pi/2.0 * np.ones(self.ur_chain.getNrOfJoints())#bounds[:, 0]
+        low = -np.pi/2.0 * np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 0]
         high = np.pi/2.0 * np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 1]
         print("Action spaces: ", low, high)
         self.action_space = spaces.Box(low, high)
@@ -175,7 +175,7 @@ class AgentSCARAROS(object):
         action_msg = JointTrajectory()
         with self._time_lock:
             self._currently_resetting = True
-            action_msg = self._get_ur_trajectory_message(self.reset_joint_angles[robot_id], self.agent, robot_id=robot_id)
+            action_msg = self._get_trajectory_message(self.reset_joint_angles[robot_id], self.agent, robot_id=robot_id)
             # self._pub.publish(action_msg)
             # time.sleep(self.agent['slowness'])
             # # action_msg.points[0].positions = [np.random.uniform(low=-3.14159, high=3.14159) for i in range(3)]
@@ -216,9 +216,9 @@ class AgentSCARAROS(object):
     # initialize the steps
     def _step(self, action, robot_id=0):
         time_step = 0
-        publish_frequencies = []
-        start = timer()
-        record_actions = [[] for i in range(6)]
+        # publish_frequencies = []
+        # start = timer()
+        # record_actions = [[] for i in range(6)]
         # sample_idx = self.condition_run_trial_times[condition]
         while time_step < self.agent['T']: #rclpy.ok():
         # if rclpy.ok(): #rclpy.ok():
@@ -243,6 +243,9 @@ class AgentSCARAROS(object):
                 if last_observations is None:
                     print("last_observations is empty")
                 else:
+                    self._time_lock.acquire(True)
+                    self._pub.publish(self._get_trajectory_message(action[:self.ur_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+                    self._time_lock.release()
                 # # # Get Jacobians from present joint angles and KDL trees
                 # # # The Jacobians consist of a 6x6 matrix getting its from from
                 # # # (# joint angles) x (len[x, y, z] + len[roll, pitch, yaw])
@@ -292,20 +295,37 @@ class AgentSCARAROS(object):
                                       np.reshape(ee_velocities, -1),]
                         # change here actions if its not working, I need to figure out how to 1. Get current action, run some policy on it and then send it back to the robot to simulate.
                         # how do you generate actions in OpenAI
-                        # self.action_space = last_observations
-                        vec = current_ee_tgt - self.agent['ee_points_tgt']
-                        # print(vec)
-                        self.reward_dist = -10.0 * np.linalg.norm(vec)
-                        self.reward_ctrl = - np.square(action).sum()
-                        self.reward = self.reward_dist + self.reward_ctrl
-                        done = False
+                        # change here actions if its not working, I need to figure out how to 1. Get current action, run some policy on it and then send it back to the robot to simulate.
+                        # how do you generate actions in OpenAI
+                        #if the error is less than 5 mm give good reward, if not give negative reward
+                        if np.linalg.norm(ee_points) < 0.005:
+                            self.reward_dist = 1000 * np.linalg.norm(ee_points)#- 10.0 * np.linalg.norm(ee_points)
+                            # we do not use this and makes the convergence very bad. We need to remove it
+                            # self.reward_ctrl = np.linalg.norm(action)#np.square(action).sum()
+                            self.reward = 100
+                            print("Eucledian dist (mm): ", self.reward_dist)
+                        # if we are close to the goal in 1 cm give positive reward, converting the distance from meters to mm
+                        elif np.linalg.norm(ee_points) < 0.01:
+                            self.reward_dist = 1000 * np.linalg.norm(ee_points)
+                            self.reward = self.reward_dist
+                            # print("Eucledian dist (mm): ", self.reward_dist)
+                        else:
+                            self.reward_dist = - np.linalg.norm(ee_points)
+                            #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
+                            self.reward = self.reward_dist
+                        # self.reward = 2.0 * self.reward_dist + 0.01 * self.reward_ctrl
+                        #removed the control reward, maybe we should add it later.
+                        # TODO: this is something we need to figure out... Should we restart the enviroment to the initial observation every time we hit the target or when we went too far, or both?
+                        # for now setting it to false all the time, meaning the enviroment will never restart.
+                        done = False #bool(np.linalg.norm(ee_points) < 0.005)#False
 
                     self._time_lock.release()
 
                 rclpy.spin_once(node)
                 time_step += 1
-                print("time_step: ", time_step)
+                # print("time_step: ", time_step)
         return self.ob, self.reward, self.done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
+
     def step(self, action, robot_id=0):
         time_step = 0
         publish_frequencies = []
@@ -313,7 +333,11 @@ class AgentSCARAROS(object):
         record_actions = [[] for i in range(6)]
         # sample_idx = self.condition_run_trial_times[condition]
         #while time_step < self.agent['T']: #rclpy.ok():
-        if rclpy.ok(): #rclpy.ok():
+        if rclpy.ok():
+            self._time_lock.acquire(True)
+            self._pub.publish(self._get_trajectory_message(action[:self.ur_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+            self._time_lock.release()
+
             # print("ROS is ok moving on.")
 
             # print("Time step: ", time_step)
@@ -322,6 +346,7 @@ class AgentSCARAROS(object):
                 # # Acquire the lock to prevent the subscriber thread from
                 # # updating times or observation messages.
                 self._time_lock.acquire(True)
+
                 obs_message = self._observation_msg
 
                 # Make it so that subscriber's thread observation callback
@@ -382,41 +407,46 @@ class AgentSCARAROS(object):
                         self.ob = np.r_[np.reshape(last_observations, -1),
                                       np.reshape(ee_points, -1),
                                       np.reshape(ee_velocities, -1),]
-                        # change here actions if its not working, I need to figure out how to 1. Get current action, run some policy on it and then send it back to the robot to simulate.
-                        # how do you generate actions in OpenAI
-                        # self.action_space = last_observations
-                        # not needed since we have it in ee_points
-                        # vec = current_ee_tgt - self.agent['ee_points_tgt']
-                        # print(vec)
-                        #if the error is smaller than 5 mm give good reward, if not give negative reward
-                        if np.linalg.norm(ee_points) < 0.005:
-                            self.reward_dist = 1000.0 * np.linalg.norm(ee_points)#- 10.0 * np.linalg.norm(ee_points)
-                            self.reward_ctrl = np.linalg.norm(action)#np.square(action).sum()
-                            done = True
-                            print("self.reward_dist: ", self.reward_dist, "self.reward_ctrl: ", self.reward_ctrl)
-                        else:
-                            self.reward_dist = - np.linalg.norm(ee_points)
-                            self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
-                        # self.reward = 2.0 * self.reward_dist + 0.01 * self.reward_ctrl
-                        #removed the control reward, maybe we should add it later.
-                        self.reward = self.reward_dist
-                        done = False
-                        # print("reward: ", self.reward)
-                        # print("distance to goal: ", ee_points)
-                        # print("self.reward_ctrl: ", self.reward_ctrl)
-                        # print("eucledean e: ", ee_points)
+                        # TODO: remove garbage code.
+                        #if the error is less than 5 mm give good reward, if not give negative reward
+                        # if np.linalg.norm(ee_points) < 0.005:
+                        #     self.reward_dist = 1000 * np.linalg.norm(ee_points)#- 10.0 * np.linalg.norm(ee_points)
+                        #     # we do not use this and makes the convergence very bad. We need to remove it
+                        #     # self.reward_ctrl = np.linalg.norm(action)#np.square(action).sum()
+                        #     self.reward = 100
+                        #     print("Eucledian dist (mm): ", self.reward_dist)
+                        # # if we are close to the goal in 1 cm give positive reward, converting the distance from meters to mm
+                        # elif np.linalg.norm(ee_points) < 0.01:
+                        #     self.reward_dist = 1000 * np.linalg.norm(ee_points)
+                        #     self.reward = self.reward_dist
+                        #     # print("Eucledian dist (mm): ", self.reward_dist)
+                        # else:
+                        #     self.reward_dist = - np.linalg.norm(ee_points)
+                        #     #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
+                        #     self.reward = self.reward_dist
 
-                    # observation_space2 = [3.14,2.17,-3.14]
-                    # print(action[:3])
-                    self._pub.publish(self._get_ur_trajectory_message(action[:3], self.agent))
-                    # print("action is: ",action[:3])
-                    # print("In step:", time_step, ". Action space:", self.action_space[:3])
-                    # time.sleep(0.1)
+                        # TODO: thinking about it it really makes sense to use negative distance as the reward function, because the closer to zero the better you are.
+                        # setting the reward to positive has negative effect of the overall performance: 1) further you are the better the reward is.
+                        # If you set to static reward you do not give a chance to the algorithm to converge (since everything that is smaller than 5 mm is going to have same reward)
+                        self.reward_dist = - self.rmse_func(ee_points)
+                        #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
+                        self.reward = self.reward_dist
+                        if abs(self.reward) < 0.005:
+                            print("Eucledian dist (mm): ", -1000 * self.reward_dist)
+
+                        done = False #bool(np.linalg.norm(ee_points) < 0.005)#False
                     self._time_lock.release()
 
                 rclpy.spin_once(node)
-                # time_step += 1
+
         return self.ob, self.reward, self.done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
+
+    def rmse_func(self, ee_points):
+      """
+        Computes the Residual Mean Square Error of the difference between current and desired end-effector position
+      """
+      rmse = np.sqrt(np.mean(np.square(ee_points), dtype=np.float32))
+      return rmse
 
     def _get_jacobians(self, state, robot_id=0):
         """Produce a Jacobian from the urdf that maps from joint angles to x, y, z.
@@ -425,14 +455,14 @@ class AgentSCARAROS(object):
         Returns a repackaged Jacobian that is 3x6.
         """
 
-        # Initialize a Jacobian for 6 joint angles by 3 cartesian coords and 3 orientation angles
-        jacobian = Jacobian(3)
+        # Initialize a Jacobian for n joint angles by 3 cartesian coords and 3 orientation angles
+        jacobian = Jacobian(self.ur_chain.getNrOfJoints())
 
-        # Initialize a joint array for the present 6 joint angles.
-        angles = JntArray(3)
+        # Initialize a joint array for the present n joint angles.
+        angles = JntArray(self.ur_chain.getNrOfJoints())
 
         # Construct the joint array from the most recent joint angles.
-        for i in range(3):
+        for i in range(self.ur_chain.getNrOfJoints()):
             angles[i] = state[i]
 
         # Update the jacobian by solving for the given angles.
@@ -498,7 +528,7 @@ class AgentSCARAROS(object):
                 # #
 
 
-    def _get_ur_trajectory_message(self, action, agent, robot_id=0):
+    def _get_trajectory_message(self, action, agent, robot_id=0):
         """Helper function only called by reset() and run_trial().
         Wraps an action vector of joint angles into a JointTrajectory message.
         The velocities, accelerations, and effort do not control the arm motion"""
@@ -536,7 +566,7 @@ class AgentSCARAROS(object):
         end_effector_points_rot = np.expand_dims(ref_rot.dot(ee_points.T).T, axis=1)
         ee_points_jac_trans = np.tile(ref_jacobians_trans, (ee_points.shape[0], 1)) + \
                                         np.cross(ref_jacobians_rot.T, end_effector_points_rot).transpose(
-                                            (0, 2, 1)).reshape(-1, 3)
+                                            (0, 2, 1)).reshape(-1, self.ur_chain.getNrOfJoints())
         ee_points_jac_rot = np.tile(ref_jacobians_rot, (ee_points.shape[0], 1))
         return ee_points_jac_trans, ee_points_jac_rot
 

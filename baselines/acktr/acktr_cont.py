@@ -5,6 +5,7 @@ from baselines import common
 from baselines.common import tf_util as U
 from baselines.acktr import kfac
 from baselines.acktr.filters import ZFilter
+import os
 
 def pathlength(path):
     return path["reward"].shape[0]# Loss function that we'll differentiate to get the policy gradient
@@ -47,8 +48,7 @@ def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
             "action_dist": np.array(ac_dists), "logp" : np.array(logps)}
 
 def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
-    animate=False, callback=None, desired_kl=0.002):
-    logger.basicConfig(filename = 'test.log' )
+    animate=False, callback=None, desired_kl=0.002, save_model_with_prefix=None, restore_model_from_file=None):
 
     obfilter = ZFilter(env.observation_space.shape)
     # Risto change
@@ -66,6 +66,14 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
     update_op, q_runner = optim.minimize(loss, loss_sampled, var_list=pi_var_list)
     do_update = U.function(inputs, update_op)
     U.initialize()
+
+    """
+    Here we add a possibility to resume from a previously saved model if a model file is provided
+    """
+    if restore_model_from_file:
+        saver = tf.train.Saver()
+        saver.restore(tf.get_default_session(), restore_model_from_file)
+        logger.log("Loaded model from {}".format(restore_model_from_file))
 
     # start queue runners
     enqueue_threads = []
@@ -139,4 +147,16 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
         if callback:
             callback()
         logger.dump_tabular()
+
+        """
+        Save the model every itteration
+        """
+        if save_model_with_prefix:
+            basePath=os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/experiments/" + save_model_with_prefix + "/saved_models"
+            if not os.path.exists(basePath):
+                os.makedirs(basePath)
+            modelF= basePath + '/' + save_model_with_prefix+"_afterIter_"+str(i)+".model"
+            U.save_state(modelF)
+            logger.log("Saved model to file :{}".format(modelF))
+
         i += 1
