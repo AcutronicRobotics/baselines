@@ -136,11 +136,11 @@ class ScaraJntsEnv(AgentSCARAROS):
         parser = argparse.ArgumentParser(description='Run Gazebo benchmark.')
         parser.add_argument('--seed', help='RNG seed', type=int, default=0)
         parser.add_argument('--save_model_with_prefix',
-                            help='Specify a prefix name to save the model with after every 100 iters. Note that this will generate multiple files (*.data, *.index, *.meta and checkpoint) with the same prefix', default='scara_3joints')
+                            help='Specify a prefix name to save the model with after every iters. Note that this will generate multiple files (*.data, *.index, *.meta and checkpoint) with the same prefix', default='scara_3joints')
         parser.add_argument('--restore_model_from_file',
                             help='Specify the absolute path to the model file including the file name upto .model (without the .data-00000-of-00001 suffix). make sure the *.index and the *.meta files for the model exists in the specified location as well', default='')
         args = parser.parse_args()
-        self.train(env,num_timesteps=3e6, seed=args.seed, save_model_with_prefix=args.save_model_with_prefix, restore_model_from_file=args.restore_model_from_file)
+        self.train(env,num_timesteps=1e6, seed=args.seed, save_model_with_prefix=args.save_model_with_prefix, restore_model_from_file=args.restore_model_from_file)
 
     def train(self,env, num_timesteps, seed, save_model_with_prefix, restore_model_from_file):
         set_global_seeds(seed)
@@ -155,7 +155,7 @@ class ScaraJntsEnv(AgentSCARAROS):
                 policy = GaussianMlpPolicy(ob_dim, ac_dim)
 
             learn(env, policy=policy, vf=vf,
-                gamma=0.99, lam=0.97, timesteps_per_batch=10000,
+                gamma=0.99, lam=0.97, timesteps_per_batch=2500,
                 desired_kl=0.02,
                 num_timesteps=num_timesteps, animate=False, save_model_with_prefix=save_model_with_prefix,restore_model_from_file=restore_model_from_file)
 

@@ -119,7 +119,8 @@ class AgentSCARAROS(object):
         # bounds = self.model.actuator_ctrlrange.copy()
         low = -np.pi/2.0 * np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 0]
         high = np.pi/2.0 * np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 1]
-        print("Action spaces: ", low, high)
+        print("Action Spaces:")
+        print("low: ", low, "high: ", high)
         self.action_space = spaces.Box(low, high)
 
         high = np.inf*np.ones(self.obs_dim)
@@ -425,14 +426,17 @@ class AgentSCARAROS(object):
                         #     #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
                         #     self.reward = self.reward_dist
 
-                        # TODO: thinking about it it really makes sense to use negative distance as the reward function, because the closer to zero the better you are.
-                        # setting the reward to positive has negative effect of the overall performance: 1) further you are the better the reward is.
-                        # If you set to static reward you do not give a chance to the algorithm to converge (since everything that is smaller than 5 mm is going to have same reward)
                         self.reward_dist = - self.rmse_func(ee_points)
                         #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
-                        self.reward = self.reward_dist
+
                         if abs(self.reward) < 0.005:
                             print("Eucledian dist (mm): ", -1000 * self.reward_dist)
+                            self.reward = 100 - self.reward_dist
+                        else:
+                            self.reward = self.reward_dist
+
+
+
 
                         done = False #bool(np.linalg.norm(ee_points) < 0.005)#False
                     self._time_lock.release()
