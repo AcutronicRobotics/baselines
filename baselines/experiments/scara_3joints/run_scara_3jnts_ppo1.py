@@ -9,11 +9,8 @@ import copy
 sys.path.append('/home/rkojcev/devel/baselines')
 from baselines.agent.scara_arm.agent_scara import AgentSCARAROS
 from baselines import logger
-from baselines.common import set_global_seeds
+from baselines.common import set_global_seeds, tf_util as U
 
-from baselines.acktr.acktr_cont import learn
-from baselines.acktr.policies import GaussianMlpPolicy
-from baselines.acktr.value_functions import NeuralNetValueFunction
 from baselines.agent.utility.general_utils import get_ee_points, get_position
 
 
@@ -33,7 +30,7 @@ class ScaraJntsEnv(AgentSCARAROS):
         # Topics for the robot publisher and subscriber.
         JOINT_PUBLISHER = '/scara_controller/command'
         JOINT_SUBSCRIBER = '/scara_controller/state'
-        # where should the agent reach, in this case the middle of the O letter in H-ROS
+        # where should the agent reach
         EE_POS_TGT = np.asmatrix([0.3325683, 0.0657366, 0.3746])
         EE_ROT_TGT = np.asmatrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
         EE_POINTS = np.asmatrix([[0, 0, 0]])
@@ -128,10 +125,6 @@ class ScaraJntsEnv(AgentSCARAROS):
             'num_samples': SAMPLE_COUNT,
         }
         AgentSCARAROS.__init__(self)
-
-        # self.spec = {'timestep_limit': 5,
-        # 'reward_threshold':  950.0,}
-
         env = self
         parser = argparse.ArgumentParser(description='Run Gazebo benchmark.')
         parser.add_argument('--seed', help='RNG seed', type=int, default=0)
@@ -140,24 +133,22 @@ class ScaraJntsEnv(AgentSCARAROS):
         parser.add_argument('--restore_model_from_file',
                             help='Specify the absolute path to the model file including the file name upto .model (without the .data-00000-of-00001 suffix). make sure the *.index and the *.meta files for the model exists in the specified location as well', default='')
         args = parser.parse_args()
-        self.train(env,num_timesteps=5e6, seed=args.seed, save_model_with_prefix=args.save_model_with_prefix, restore_model_from_file=args.restore_model_from_file)
-
-    def train(self,env, num_timesteps, seed, save_model_with_prefix, restore_model_from_file):
+        self.train(env, num_timesteps=1e6, seed=args.seed)
+    def train(self, env, num_timesteps, seed):
+        from baselines.ppo1 import mlp_policy, pposgd_simple
+        U.make_session(num_cpu=1).__enter__()
         set_global_seeds(seed)
+        def policy_fn(name, ob_space, ac_space):
+            return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
+                hid_size=64, num_hid_layers=2)
         env.seed(seed)
-
-        with tf.Session(config=tf.ConfigProto()) as session:
-            ob_dim = env.observation_space.shape[0]
-            ac_dim = env.action_space.shape[0]
-            with tf.variable_scope("vf"):
-                vf = NeuralNetValueFunction(ob_dim, ac_dim)
-            with tf.variable_scope("pi"):
-                policy = GaussianMlpPolicy(ob_dim, ac_dim)
-
-            learn(env, policy=policy, vf=vf,
-                gamma=0.99, lam=0.97, timesteps_per_batch=5000,
-                desired_kl=0.02,
-                num_timesteps=num_timesteps, animate=False, save_model_with_prefix=save_model_with_prefix,restore_model_from_file=restore_model_from_file)
+        pposgd_simple.learn(env, policy_fn,
+                max_timesteps=num_timesteps,
+                timesteps_per_batch=2048,
+                clip_param=0.2, entcoeff=0.0,
+                optim_epochs=10, optim_stepsize=3e-4, optim_batchsize=64,
+                gamma=0.99, lam=0.95, schedule='linear',
+        )
 
 
 if __name__ == "__main__":

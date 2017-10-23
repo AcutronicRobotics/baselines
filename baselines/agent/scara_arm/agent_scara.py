@@ -17,7 +17,6 @@ from os import path
 from rclpy.qos import QoSProfile, qos_profile_sensor_data
 from baselines.agent.utility.general_utils import forward_kinematics, get_ee_points, rotation_from_matrix, \
     get_rotation_matrix,quaternion_from_matrix# For getting points and velocities.
-# from gps.algorithm.policy.controller_prior_gmm import ControllerPriorGMM
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint # Used for publishing scara joint angles.
 from control_msgs.msg import JointTrajectoryControllerState
 from std_msgs.msg import String
@@ -63,8 +62,8 @@ class AgentSCARAROS(object):
         # to work with baselines a2c need this ones
         self.num_envs = 1
         self.remotes = [0]
-    #
-    #     # Setup the main node.
+
+        # Setup the main node.
         print("Init ros node")
         rclpy.init(args=None)
         node = rclpy.create_node('robot_ai_node')
@@ -94,13 +93,13 @@ class AgentSCARAROS(object):
         # Initialize a tree structure from the robot urdf.
         # Note that the xacro of the urdf is updated by hand.
         # Then the urdf must be compiled.
-        _, self.ur_tree = treeFromFile(self.agent['tree_path'])
+        _, self.scara_tree = treeFromFile(self.agent['tree_path'])
         # Retrieve a chain structure between the base and the start of the end effector.
-        self.ur_chain = self.ur_tree.getChain(self.agent['link_names'][0], self.agent['link_names'][-1])
-        print("Nr. of jnts: ", self.ur_chain.getNrOfJoints())
+        self.scara_chain = self.scara_tree.getChain(self.agent['link_names'][0], self.agent['link_names'][-1])
+        print("Nr. of jnts: ", self.scara_chain.getNrOfJoints())
 
     #     # Initialize a KDL Jacobian solver from the chain.
-        self.jac_solver = ChainJntToJacSolver(self.ur_chain)
+        self.jac_solver = ChainJntToJacSolver(self.scara_chain)
         print(self.jac_solver)
         self._observations_stale = [False for _ in range(1)]
         print("after observations stale")
@@ -110,50 +109,43 @@ class AgentSCARAROS(object):
         self.reset_joint_angles = [None for _ in range(1)]
 
         # taken from mujoco in OpenAi how to initialize observation space and action space.
-        observation, _reward, done, _info = self._step(np.zeros(self.ur_chain.getNrOfJoints()))
+        observation, _reward, done, _info = self._step(np.zeros(self.scara_chain.getNrOfJoints()))
         assert not done
         self.obs_dim = observation.size
         # print(observation, _reward)
         # Here idially we should find the control range of the robot. Unfortunatelly in ROS/KDL there is nothing like this.
         # I have tested this with the mujoco enviroment and the output is always same low[-1.,-1.], high[1.,1.]
         # bounds = self.model.actuator_ctrlrange.copy()
-        low = -np.pi/2.0 * np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 0]
-        high = np.pi/2.0 * np.ones(self.ur_chain.getNrOfJoints()) #bounds[:, 1]
-        print("Action Spaces:")
-        print("low: ", low, "high: ", high)
+        low = -np.pi/2.0 * np.ones(self.scara_chain.getNrOfJoints()) #bounds[:, 0]
+        high = np.pi/2.0 * np.ones(self.scara_chain.getNrOfJoints()) #bounds[:, 1]
+        # print("Action Spaces:")
+        # print("low: ", low, "high: ", high)
         self.action_space = spaces.Box(low, high)
 
         high = np.inf*np.ones(self.obs_dim)
         low = -high
         self.observation_space = spaces.Box(low, high)
+        print(self.observation_space)
 
         # self.seed()
     def _observation_callback(self, message):
+        robot_id = 0
         # print("Trying to call observation msgs")
         # global _observation_msg
-        self._observation_msg =  message
+        # self._observation_msg =  message
         # print(self._observation_msg.joint_names)
         # print(_observation_msg)
-        # """This callback is set on the subscriber node in self.__init__().
-        # It's called by ROS every 40 ms while the subscriber is listening.
-        # Primarily updates the present and latest times.
-        # This callback is invoked asynchronously, so is effectively a
-        # "subscriber thread", separate from the control flow of the rest of
-        # GPS, which runs in the "main thread".
         # message: observation from the robot to store each listen."""
-        # with self._time_lock:
-        #     self._observations_stale[robot_id] = False
-        #     self._observation_msg = message
-        #     if self._currently_resetting[robot_id]:
-        #         epsilon = 1e-3
-        #         reset_action = self.reset_joint_angles[robot_id]
-        #         now_action = np.asarray(
-        #             self._observation_msg.actual.positions[:len(reset_action)])
-        #         du = np.linalg.norm(reset_action-now_action, float('inf'))
-        #         if du < epsilon:
-        #             self._currently_resetting[robot_id] = False
-                    # self._reset_cv.notify_all()
-        # print('robot call back ', robot_id)
+        with self._time_lock:
+            self._observations_stale[robot_id] = False
+            self._observation_msg = message
+            if self._currently_resetting:
+                epsilon = 1e-3
+                reset_action = self.agent['reset_conditions']['initial_positions']
+                now_action = self._observation_msg.actual.positions
+                du = np.linalg.norm(reset_action-now_action, float(np.inf))
+                if du < epsilon:
+                    self._currently_resetting = False
 
     def reset(self, robot_id=0):
         """Not necessarily a helper function as it is inherited.
@@ -161,23 +153,26 @@ class AgentSCARAROS(object):
         condition: An index into hyperparams['reset_conditions']."""
 
         # Set the reset position as the initial position from agent hyperparams.
+        # print("reset: ")
         self.reset_joint_angles[robot_id] = self.agent['reset_conditions']['initial_positions']
 
         # Prepare the present positions to see how far off we are.
-        now_position = np.asarray(self._observation_msg.actual.positions[:len(self.reset_joint_angles[robot_id])])
-
-        # Raise error if robot has made contact with the ground in simulation.
-        # This occurs because Gazebo sets joint angles beyond what they can possibly
-        # be when the robot makes contact with the ground and "breaks."
-        if max(abs(now_position)) >= 2*np.pi:
-            raise ROBOT_MADE_CONTACT_WITH_GAZEBO_GROUND_SO_RESTART_ROSLAUNCH
+        now_position = np.asarray(self._observation_msg.actual.positions)
+        #
+        # # Raise error if robot has made contact with the ground in simulation.
+        # # This occurs because Gazebo sets joint angles beyond what they can possibly
+        # # be when the robot makes contact with the ground and "breaks."
+        # if max(abs(now_position)) >= 2*np.pi:
+        #     raise ROBOT_MADE_CONTACT_WITH_GAZEBO_GROUND_SO_RESTART_ROSLAUNCH
 
         # Wait until the arm is within epsilon of reset configuration.
         action_msg = JointTrajectory()
+        self._time_lock.acquire(True)
         with self._time_lock:
             self._currently_resetting = True
             action_msg = self._get_trajectory_message(self.reset_joint_angles[robot_id], self.agent, robot_id=robot_id)
             # self._pub.publish(action_msg)
+            # TODO: clean garbage code
             # time.sleep(self.agent['slowness'])
             # # action_msg.points[0].positions = [np.random.uniform(low=-3.14159, high=3.14159) for i in range(3)]
             # # print(action_msg)
@@ -197,10 +192,17 @@ class AgentSCARAROS(object):
             # print("self.agent['end_effector_velocities']: ", a)
             # print("self.agent['end_effector_points']: ", np.reshape(self.agent['end_effector_points'], -1))
             # print("np.reshape(np.array(action_msg.points[0].positions), -1): ", np.reshape(np.array(action_msg.points[0].positions), -1))
+
+            self._pub.publish(self._get_trajectory_message(self._observation_msg.actual.positions, self.agent, robot_id=robot_id))
+            # time.sleep(self.agent['slowness'])
+            self._time_lock.release()
+
+            # print("actual positions: ",self._observation_msg.actual.positions)
+            # print("self.ob[:3]",self.ob[:3])
             # print("action_msg.points[0].positions: ", action_msg.points[0].positions)
 
             # here we reset the position to 0 in each joint. Probably I need to check this function and compare it to mujoco openai
-            reset = np.r_[np.reshape(np.array(action_msg.points[0].positions), -1),
+            reset = np.r_[np.reshape(np.array(self._observation_msg.actual.positions), -1),
                             np.reshape(np.squeeze(np.asarray(self.agent['end_effector_points'])), -1),
                             np.reshape(np.squeeze(np.asarray(self.agent['end_effector_velocities'])), -1)]
         # #     # c = action_msg.points[0].positions
@@ -210,6 +212,7 @@ class AgentSCARAROS(object):
         # # #
         # #
         # reset = self.ob
+
         return reset
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -222,10 +225,10 @@ class AgentSCARAROS(object):
         # record_actions = [[] for i in range(6)]
         # sample_idx = self.condition_run_trial_times[condition]
         while time_step < self.agent['T']: #rclpy.ok():
-        # if rclpy.ok(): #rclpy.ok():
-            # print("ROS is ok moving on.")
+            self._time_lock.acquire(True)
+            self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+            self._time_lock.release()
 
-            # print("Time step: ", time_step)
             # Only read and process ROS messages if they are fresh.
             if self._observations_stale[robot_id] is False:
                 # # Acquire the lock to prevent the subscriber thread from
@@ -244,9 +247,6 @@ class AgentSCARAROS(object):
                 if last_observations is None:
                     print("last_observations is empty")
                 else:
-                    self._time_lock.acquire(True)
-                    self._pub.publish(self._get_trajectory_message(action[:self.ur_chain.getNrOfJoints()], self.agent))#rclpy.ok():
-                    self._time_lock.release()
                 # # # Get Jacobians from present joint angles and KDL trees
                 # # # The Jacobians consist of a 6x6 matrix getting its from from
                 # # # (# joint angles) x (len[x, y, z] + len[roll, pitch, yaw])
@@ -255,7 +255,7 @@ class AgentSCARAROS(object):
                         print("End link is empty!!")
                     else:
                         # print(self.agent['link_names'][-1])
-                        trans, rot = forward_kinematics(self.ur_chain,
+                        trans, rot = forward_kinematics(self.scara_chain,
                                                     self.agent['link_names'],
                                                     last_observations,
                                                     base_link=self.agent['link_names'][0],
@@ -318,14 +318,15 @@ class AgentSCARAROS(object):
                         #removed the control reward, maybe we should add it later.
                         # TODO: this is something we need to figure out... Should we restart the enviroment to the initial observation every time we hit the target or when we went too far, or both?
                         # for now setting it to false all the time, meaning the enviroment will never restart.
-                        done = False #bool(np.linalg.norm(ee_points) < 0.005)#False
+                        done = bool(self.rmse_func(ee_points) < 0.01)
 
                     self._time_lock.release()
+                    # print("done in _step: ", done)
 
                 rclpy.spin_once(node)
                 time_step += 1
                 # print("time_step: ", time_step)
-        return self.ob, self.reward, self.done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
+        return self.ob, self.reward, done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
 
     def step(self, action, robot_id=0):
         time_step = 0
@@ -336,7 +337,8 @@ class AgentSCARAROS(object):
         #while time_step < self.agent['T']: #rclpy.ok():
         if rclpy.ok():
             self._time_lock.acquire(True)
-            self._pub.publish(self._get_trajectory_message(action[:self.ur_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+            self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+            # time.sleep(self.agent["slowness"])
             self._time_lock.release()
 
             # print("ROS is ok moving on.")
@@ -369,7 +371,7 @@ class AgentSCARAROS(object):
                         print("End link is empty!!")
                     else:
                         # print(self.agent['link_names'][-1])
-                        trans, rot = forward_kinematics(self.ur_chain,
+                        trans, rot = forward_kinematics(self.scara_chain,
                                                     self.agent['link_names'],
                                                     last_observations[:3],
                                                     base_link=self.agent['link_names'][0],
@@ -426,24 +428,23 @@ class AgentSCARAROS(object):
                         #     #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
                         #     self.reward = self.reward_dist
 
-                        self.reward_dist = - self.rmse_func(ee_points)
+                        self.reward_dist = - self.rmse_func(ee_points) #- 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
+                        self.reward = 100 * self.reward_dist
+                        # print("reward: ",self.reward)
                         #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
 
-                        if abs(self.reward) < 0.005:
+                        if abs(self.reward) < 0.01:
                             print("Eucledian dist (mm): ", -1000 * self.reward_dist)
-                            self.reward = 100 - self.reward_dist
-                        else:
-                            self.reward = self.reward_dist
+                            self.reward += 10 + self.reward_dist
+                            done = True
 
-
-
-
-                        done = False #bool(np.linalg.norm(ee_points) < 0.005)#False
+                        done = bool(self.rmse_func(ee_points) < 0.01)#False
                     self._time_lock.release()
 
                 rclpy.spin_once(node)
 
-        return self.ob, self.reward, self.done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
+
+        return self.ob, self.reward, done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
 
     def rmse_func(self, ee_points):
       """
@@ -451,6 +452,15 @@ class AgentSCARAROS(object):
       """
       rmse = np.sqrt(np.mean(np.square(ee_points), dtype=np.float32))
       return rmse
+    def log_dist_func(self, ee_points):
+        """
+        Computes the Log of the Eucledian Distance Error between current and desired end-effector position
+        """
+        log_dist = np.log(ee_points, dtype=np.float32) # [:(self.scara_chain.getNrOfJoints())]
+        log_dist[log_dist == -np.inf] = 0.0
+        log_dist = np.nan_to_num(log_dist)
+        # print("log_distance: ", log_dist)
+        return log_dist
 
     def _get_jacobians(self, state, robot_id=0):
         """Produce a Jacobian from the urdf that maps from joint angles to x, y, z.
@@ -460,13 +470,13 @@ class AgentSCARAROS(object):
         """
 
         # Initialize a Jacobian for n joint angles by 3 cartesian coords and 3 orientation angles
-        jacobian = Jacobian(self.ur_chain.getNrOfJoints())
+        jacobian = Jacobian(self.scara_chain.getNrOfJoints())
 
         # Initialize a joint array for the present n joint angles.
-        angles = JntArray(self.ur_chain.getNrOfJoints())
+        angles = JntArray(self.scara_chain.getNrOfJoints())
 
         # Construct the joint array from the most recent joint angles.
-        for i in range(self.ur_chain.getNrOfJoints()):
+        for i in range(self.scara_chain.getNrOfJoints()):
             angles[i] = state[i]
 
         # Update the jacobian by solving for the given angles.
@@ -570,7 +580,7 @@ class AgentSCARAROS(object):
         end_effector_points_rot = np.expand_dims(ref_rot.dot(ee_points.T).T, axis=1)
         ee_points_jac_trans = np.tile(ref_jacobians_trans, (ee_points.shape[0], 1)) + \
                                         np.cross(ref_jacobians_rot.T, end_effector_points_rot).transpose(
-                                            (0, 2, 1)).reshape(-1, self.ur_chain.getNrOfJoints())
+                                            (0, 2, 1)).reshape(-1, self.scara_chain.getNrOfJoints())
         ee_points_jac_rot = np.tile(ref_jacobians_rot, (ee_points.shape[0], 1))
         return ee_points_jac_trans, ee_points_jac_rot
 
