@@ -327,14 +327,14 @@ class AgentSCARAROS(object):
                 time_step += 1
                 # print("time_step: ", time_step)
         return self.ob, self.reward, done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
+    # def _get_obs(self):
 
     def step(self, action, robot_id=0):
-        time_step = 0
+
         publish_frequencies = []
         start = timer()
         record_actions = [[] for i in range(6)]
-        # sample_idx = self.condition_run_trial_times[condition]
-        #while time_step < self.agent['T']: #rclpy.ok():
+        # Check if ROS2 is ok
         if rclpy.ok():
             self._time_lock.acquire(True)
             self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
@@ -410,23 +410,6 @@ class AgentSCARAROS(object):
                         self.ob = np.r_[np.reshape(last_observations, -1),
                                       np.reshape(ee_points, -1),
                                       np.reshape(ee_velocities, -1),]
-                        # TODO: remove garbage code.
-                        #if the error is less than 5 mm give good reward, if not give negative reward
-                        # if np.linalg.norm(ee_points) < 0.005:
-                        #     self.reward_dist = 1000 * np.linalg.norm(ee_points)#- 10.0 * np.linalg.norm(ee_points)
-                        #     # we do not use this and makes the convergence very bad. We need to remove it
-                        #     # self.reward_ctrl = np.linalg.norm(action)#np.square(action).sum()
-                        #     self.reward = 100
-                        #     print("Eucledian dist (mm): ", self.reward_dist)
-                        # # if we are close to the goal in 1 cm give positive reward, converting the distance from meters to mm
-                        # elif np.linalg.norm(ee_points) < 0.01:
-                        #     self.reward_dist = 1000 * np.linalg.norm(ee_points)
-                        #     self.reward = self.reward_dist
-                        #     # print("Eucledian dist (mm): ", self.reward_dist)
-                        # else:
-                        #     self.reward_dist = - np.linalg.norm(ee_points)
-                        #     #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
-                        #     self.reward = self.reward_dist
 
                         self.reward_dist = - self.rmse_func(ee_points) #- 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
                         self.reward = 100 * self.reward_dist
@@ -438,7 +421,7 @@ class AgentSCARAROS(object):
                             self.reward += 10 + self.reward_dist
                             done = True
 
-                        done = bool(self.rmse_func(ee_points) < 0.01)#False
+                        done = bool(self.rmse_func(ee_points) < 0.01)
                     self._time_lock.release()
 
                 rclpy.spin_once(node)
