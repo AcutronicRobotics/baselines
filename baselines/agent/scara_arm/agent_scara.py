@@ -85,11 +85,6 @@ class AgentSCARAROS(object):
         print("I am in reading the file path: ", fullpath)
 
 
-        # self._valid_joint_set = [set(hyperparams['joint_order'][ii]) for ii in xrange(self.parallel_num)]
-        # self._valid_joint_index = [{joint: index for joint, index in
-        #                            enumerate(hyperparams['joint_order'][ii])} for ii in xrange(self.parallel_num)]
-
-
         # Initialize a tree structure from the robot urdf.
         # Note that the xacro of the urdf is updated by hand.
         # Then the urdf must be compiled.
@@ -182,7 +177,13 @@ class AgentSCARAROS(object):
             self._time_lock.acquire(True)
 
             obs_message = self._observation_msg
+            # if obs_message is None:
+            #     obs_message = self._observation_msg
+            #     # time.sleep(self.agent['slowness'])
+            #     # self._observations_stale = True
             # self._time_lock.release()
+
+
 
             # Make it so that subscriber's thread observation callback
             # must be called before publishing again.
@@ -206,6 +207,7 @@ class AgentSCARAROS(object):
                 if self.agent['link_names'][-1] is None:
                     print("End link is empty!!")
                 else:
+                    self._observations_stale = False
                     # print(self.agent['link_names'][-1])
                     trans, rot = forward_kinematics(self.scara_chain,
                                                 self.agent['link_names'],
@@ -251,11 +253,14 @@ class AgentSCARAROS(object):
                         print("Observations are none!!!")
                     # else:
                     #     print("We have observations")
+
+
             return observations, ee_points
     # initialize the steps
     def _step(self, action):
         time_step = 0
         ee_points = None
+        self.ob = None
         while time_step < self.agent['T']: #rclpy.ok():
             """
             How they do in OpenAI:
@@ -263,18 +268,15 @@ class AgentSCARAROS(object):
               2. Perform action (do_simulation)
               3. Get the Observations
             """
-            self._time_lock.acquire(True)
-            self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
-            self._time_lock.release()
 
-            self.ob, ee_points  = self._get_obs()
+            _, ee_points  = self._get_obs()
 
-            if self.ob is None or ee_points is None:
+            if ee_points is None:
                 print("self.ob: ", self.ob)
                 print("ee_points: ", ee_points)
                 done = False
                 rclpy.spin_once(node)
-                time_step += 1
+                time.sleep(self.agent['slowness'])
             else:
                 self.reward_dist = - self.rmse_func(ee_points) #- 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
                 self.reward = 100 * self.reward_dist
@@ -287,7 +289,19 @@ class AgentSCARAROS(object):
                     done = True
                 done = bool(self.rmse_func(ee_points) < 0.01)
 
+                self._time_lock.acquire(True)
+                self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+
+                while self.ob is None or ee_points is None:
+                    self.ob, ee_points  = self._get_obs()
+                    # print("self.ob: ", self.ob)
+                    # print("ee_points: ", ee_points)
+                    rclpy.spin_once(node)
+                    time.sleep(self.agent['slowness'])
+
                 self._time_lock.release()
+
+                # self._time_lock.release()
                 rclpy.spin_once(node)
 
                 time_step += 1
@@ -307,12 +321,10 @@ class AgentSCARAROS(object):
              2. Perform action (do_simulation)
              3. Get the Observations
         """
-
         start = timer()
         # Check if ROS2 is ok
         if rclpy.ok():
             observations, ee_points  = self._get_obs()
-
             if self.ob is None or ee_points is None:
                 print("self.ob: ", self.ob)
                 print("ee_points: ", ee_points)
@@ -322,11 +334,9 @@ class AgentSCARAROS(object):
             else:
                 self.reward_dist = - self.rmse_func(ee_points) #- 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
                 self.reward = 100 * self.reward_dist
-                # print("reward: ",self.reward)
-                #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
 
                 if abs(self.reward) < 0.01:
-                    print("Eucledian dist (mm): ", -1000 * self.reward_dist)
+                    print("Reward function: ", self.reward_dist)
                     self.reward += 10 + self.reward_dist
                     done = True
                     self._time_lock.release()
@@ -410,32 +420,6 @@ class AgentSCARAROS(object):
 
             return np.array(message.actual.positions) # + message.actual.velocities
 
-                # # If necessary, reorder the joint values to conform to the order
-                # # expected in hyperparams['joint_order'].
-                # new_message = [None for _ in range(len(message))]
-                # print(new_message)
-                # for joint, index in message.joint_names.enumerate():
-                #     for state_type in self._hyperparams['state_types']:
-                #         new_message[self._valid_joint_index[robot_id][joint]] = message[state_type][index]
-                #
-                # message = new_message
-                # #
-                # # # Package the positions, velocities, amd accellerations of the joint angles.
-                # # for (state_type, state_category), state_value_vector in zip(
-                # #     # self.agent['state_types'].items(),
-                # #     [message.actual.positions, message.actual.velocities,
-                # #     message.actual.accelerations]):
-                # #
-                # #     # Assert that the length of the value vector matches the corresponding
-                # #     # number of dimensions from the hyperparameters file
-                # #     # assert len(state_value_vector) == self._hyperparams['sensor_dims'][state_category]
-                # #
-                # #     # Write the state value vector into the results dictionary keyed by its
-                # #     # state category
-                # #     result[state_category].append(state_value_vector)
-                # #     print(result)
-                # #
-
 
     def _get_trajectory_message(self, action, agent):
         """Helper function only called by reset() and run_trial().
@@ -454,7 +438,6 @@ class AgentSCARAROS(object):
         # These times determine the speed at which the robot moves:
         # it tries to reach the specified target position in 'slowness' time.
         target.time_from_start.sec = agent['slowness']
-
         # Package the single point into a trajectory of points with length 1.
         action_msg.points = [target]
 
