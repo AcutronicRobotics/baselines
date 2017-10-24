@@ -36,9 +36,9 @@ class MSG_INVALID_JOINT_NAMES_DIFFER(Exception):
     """Error object exclusively raised by _process_observations."""
     pass
 
-class ROBOT_MADE_CONTACT_WITH_GAZEBO_GROUND_SO_RESTART_ROSLAUNCH(Exception):
-    """Error object exclusively raised by reset."""
-    pass
+# class ROBOT_MADE_CONTACT_WITH_GAZEBO_GROUND_SO_RESTART_ROSLAUNCH(Exception):
+#     """Error object exclusively raised by reset."""
+#     pass
 
 
 class AgentSCARAROS(object):
@@ -101,7 +101,7 @@ class AgentSCARAROS(object):
     #     # Initialize a KDL Jacobian solver from the chain.
         self.jac_solver = ChainJntToJacSolver(self.scara_chain)
         print(self.jac_solver)
-        self._observations_stale = [False for _ in range(1)]
+        self._observations_stale = False
         print("after observations stale")
 
     #
@@ -112,6 +112,7 @@ class AgentSCARAROS(object):
         observation, _reward, done, _info = self._step(np.zeros(self.scara_chain.getNrOfJoints()))
         assert not done
         self.obs_dim = observation.size
+        print(self.obs_dim)
         # print(observation, _reward)
         # Here idially we should find the control range of the robot. Unfortunatelly in ROS/KDL there is nothing like this.
         # I have tested this with the mujoco enviroment and the output is always same low[-1.,-1.], high[1.,1.]
@@ -129,15 +130,10 @@ class AgentSCARAROS(object):
 
         # self.seed()
     def _observation_callback(self, message):
-        robot_id = 0
-        # print("Trying to call observation msgs")
-        # global _observation_msg
-        # self._observation_msg =  message
-        # print(self._observation_msg.joint_names)
-        # print(_observation_msg)
         # message: observation from the robot to store each listen."""
+        self._time_lock.acquire(True, -1)
         with self._time_lock:
-            self._observations_stale[robot_id] = False
+            self._observations_stale = False
             self._observation_msg = message
             if self._currently_resetting:
                 epsilon = 1e-3
@@ -146,286 +142,202 @@ class AgentSCARAROS(object):
                 du = np.linalg.norm(reset_action-now_action, float(np.inf))
                 if du < epsilon:
                     self._currently_resetting = False
+                # else:
+                #     time.sleep(self.agent['slowness'])
+        self._time_lock.release()
 
-    def reset(self, robot_id=0):
-        """Not necessarily a helper function as it is inherited.
-        Reset the agent for a particular experiment condition.
-        condition: An index into hyperparams['reset_conditions']."""
+
+    def reset(self):
+        """Reset function should call reset_model.
+           In OpenAI in reset_model we are setting the robot to initial pose + some random number.
+           This function returns the observations which are then used again for the policy calculation.
+           In our case we are going to set the robot to initial pose, for now given by the user."""
+        self.obs = None
+        # self._currently_resetting = True
 
         # Set the reset position as the initial position from agent hyperparams.
-        # print("reset: ")
-        self.reset_joint_angles[robot_id] = self.agent['reset_conditions']['initial_positions']
-
+        self.reset_joint_angles = self.agent['reset_conditions']['initial_positions']
         # Prepare the present positions to see how far off we are.
         now_position = np.asarray(self._observation_msg.actual.positions)
-        #
-        # # Raise error if robot has made contact with the ground in simulation.
-        # # This occurs because Gazebo sets joint angles beyond what they can possibly
-        # # be when the robot makes contact with the ground and "breaks."
-        # if max(abs(now_position)) >= 2*np.pi:
-        #     raise ROBOT_MADE_CONTACT_WITH_GAZEBO_GROUND_SO_RESTART_ROSLAUNCH
 
         # Wait until the arm is within epsilon of reset configuration.
         action_msg = JointTrajectory()
-        self._time_lock.acquire(True)
+        self._time_lock.acquire(True, -1)
         with self._time_lock:
             self._currently_resetting = True
-            action_msg = self._get_trajectory_message(self.reset_joint_angles[robot_id], self.agent, robot_id=robot_id)
-            # self._pub.publish(action_msg)
-            # TODO: clean garbage code
-            # time.sleep(self.agent['slowness'])
-            # # action_msg.points[0].positions = [np.random.uniform(low=-3.14159, high=3.14159) for i in range(3)]
-            # # print(action_msg)
-            #
-            # # print(action_msg.points[0].positions)
-            #
-            # a = np.zeros(3, dtype=np.float) + np.random.uniform(low=-3.14159, high=3.14159, size=3)
-            # b = np.zeros(3, dtype=np.float)  + np.random.uniform(low=-3.14159, high=3.14159, size=3)
-            # # print("action_msgs",action_msg.points[0].positions)
-            # # print("np array",np.array([a, b]))
-            # # print("uniform", [np.random.uniform(low=-180.005, high=180.005) for i in range(6)])
-            #
-            # # action_msg.points[0].positions = [np.random.uniform(low=-3.14159, high=3.14159) for i in range(3)]
-            # # action_msg.points[0].positions = [0.0, 0.0, 0.0]
-            # # print(action_msg.points[0].positions.shape)
-            # a = np.squeeze(np.asarray(self.agent['end_effector_velocities']))
-            # print("self.agent['end_effector_velocities']: ", a)
-            # print("self.agent['end_effector_points']: ", np.reshape(self.agent['end_effector_points'], -1))
-            # print("np.reshape(np.array(action_msg.points[0].positions), -1): ", np.reshape(np.array(action_msg.points[0].positions), -1))
+            self._pub.publish(self._get_trajectory_message(self.reset_joint_angles, self.agent))
+            self.ob, ee_points = self._get_obs()
+        self._time_lock.release()
 
-            self._pub.publish(self._get_trajectory_message(self._observation_msg.actual.positions, self.agent, robot_id=robot_id))
-            # time.sleep(self.agent['slowness'])
-            self._time_lock.release()
-
-            # print("actual positions: ",self._observation_msg.actual.positions)
-            # print("self.ob[:3]",self.ob[:3])
-            # print("action_msg.points[0].positions: ", action_msg.points[0].positions)
-
-            # here we reset the position to 0 in each joint. Probably I need to check this function and compare it to mujoco openai
-            reset = np.r_[np.reshape(np.array(self._observation_msg.actual.positions), -1),
-                            np.reshape(np.squeeze(np.asarray(self.agent['end_effector_points'])), -1),
-                            np.reshape(np.squeeze(np.asarray(self.agent['end_effector_velocities'])), -1)]
-        # #     # c = action_msg.points[0].positions
-        # #     print("reset model: ",reset)
-        #     print("obs model: ",self.ob)
-        # #     c = reset
-        # # #
-        # #
-        # reset = self.ob
-
-        return reset
+        return self.ob
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
+    def _get_obs(self):
+        observations = None
+        ee_points = None
+        if self._observations_stale is False:
+            # # Acquire the lock to prevent the subscriber thread from
+            # # updating times or observation messages.
+            self._time_lock.acquire(True)
+
+            obs_message = self._observation_msg
+            # self._time_lock.release()
+
+            # Make it so that subscriber's thread observation callback
+            # must be called before publishing again.
+
+            # Collect the end effector points and velocities in
+            # cartesian coordinates for the state.
+            # Collect the present joint angles and velocities from ROS for the state.
+            last_observations = self._process_observations(obs_message, self.agent)
+
+            # self._observations_stale = True
+
+
+            if last_observations is None:
+                print("last_observations is empty")
+            else:
+
+            # # # Get Jacobians from present joint angles and KDL trees
+            # # # The Jacobians consist of a 6x6 matrix getting its from from
+            # # # (# joint angles) x (len[x, y, z] + len[roll, pitch, yaw])
+                ee_link_jacobians = self._get_jacobians(last_observations)
+                if self.agent['link_names'][-1] is None:
+                    print("End link is empty!!")
+                else:
+                    # print(self.agent['link_names'][-1])
+                    trans, rot = forward_kinematics(self.scara_chain,
+                                                self.agent['link_names'],
+                                                last_observations[:3],
+                                                base_link=self.agent['link_names'][0],
+                                                end_link=self.agent['link_names'][-1])
+                    # #
+                    rotation_matrix = np.eye(4)
+                    rotation_matrix[:3, :3] = rot
+                    rotation_matrix[:3, 3] = trans
+                    # angle, dir, _ = rotation_from_matrix(rotation_matrix)
+                    # #
+                    # current_quaternion = np.array([angle]+dir.tolist())#
+
+                    # I need this calculations for the new reward function, need to send them back to the run scara or calculate them here
+                    current_quaternion = quaternion_from_matrix(rotation_matrix)
+
+                    current_ee_tgt = np.ndarray.flatten(get_ee_points(self.agent['end_effector_points'],
+                                                                      trans,
+                                                                      rot).T)
+                    ee_points = current_ee_tgt - self.agent['ee_points_tgt']
+
+                    ee_points_jac_trans, _ = self._get_ee_points_jacobians(ee_link_jacobians,
+                                                                           self.agent['end_effector_points'],
+                                                                           rot)
+                    ee_velocities = self._get_ee_points_velocities(ee_link_jacobians,
+                                                                   self.agent['end_effector_points'],
+                                                                   rot,
+                                                                   last_observations)
+
+                    #
+                    # Concatenate the information that defines the robot state
+                    # vector, typically denoted asrobot_id 'x'.
+                    state = np.r_[np.reshape(last_observations, -1),
+                                  np.reshape(ee_points, -1),
+                                  np.reshape(ee_velocities, -1),]
+
+                    observations = np.r_[np.reshape(last_observations, -1),
+                                  np.reshape(ee_points, -1),
+                                  np.reshape(ee_velocities, -1),]
+                    if observations is None:
+                        #need to handle this properly
+                        print("Observations are none!!!")
+                    # else:
+                    #     print("We have observations")
+            return observations, ee_points
     # initialize the steps
-    def _step(self, action, robot_id=0):
+    def _step(self, action):
         time_step = 0
-        # publish_frequencies = []
-        # start = timer()
-        # record_actions = [[] for i in range(6)]
-        # sample_idx = self.condition_run_trial_times[condition]
+        ee_points = None
         while time_step < self.agent['T']: #rclpy.ok():
+            """
+            How they do in OpenAI:
+              1. Calculate the reward
+              2. Perform action (do_simulation)
+              3. Get the Observations
+            """
             self._time_lock.acquire(True)
             self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
             self._time_lock.release()
 
-            # Only read and process ROS messages if they are fresh.
-            if self._observations_stale[robot_id] is False:
-                # # Acquire the lock to prevent the subscriber thread from
-                # # updating times or observation messages.
-                self._time_lock.acquire(True)
-                obs_message = self._observation_msg
+            self.ob, ee_points  = self._get_obs()
 
-                # Make it so that subscriber's thread observation callback
-                # must be called before publishing again.
-                self._observations_stale[robot_id] = False
-
-                # Collect the end effector points and velocities in
-                # cartesian coordinates for the state.
-                # Collect the present joint angles and velocities from ROS for the state.
-                last_observations = self._process_observations(obs_message, self.agent)
-                if last_observations is None:
-                    print("last_observations is empty")
-                else:
-                # # # Get Jacobians from present joint angles and KDL trees
-                # # # The Jacobians consist of a 6x6 matrix getting its from from
-                # # # (# joint angles) x (len[x, y, z] + len[roll, pitch, yaw])
-                    ee_link_jacobians = self._get_jacobians(last_observations)
-                    if self.agent['link_names'][-1] is None:
-                        print("End link is empty!!")
-                    else:
-                        # print(self.agent['link_names'][-1])
-                        trans, rot = forward_kinematics(self.scara_chain,
-                                                    self.agent['link_names'],
-                                                    last_observations,
-                                                    base_link=self.agent['link_names'][0],
-                                                    end_link=self.agent['link_names'][-1])
-                        # #
-                        rotation_matrix = np.eye(4)
-                        rotation_matrix[:3, :3] = rot
-                        rotation_matrix[:3, 3] = trans
-                        # angle, dir, _ = rotation_from_matrix(rotation_matrix)
-                        # #
-                        # current_quaternion = np.array([angle]+dir.tolist())#
-
-                        # I need this calculations for the new reward function, need to send them back to the run scara or calculate them here
-                        current_quaternion = quaternion_from_matrix(rotation_matrix)
-
-                        current_ee_tgt = np.ndarray.flatten(get_ee_points(self.agent['end_effector_points'],
-                                                                          trans,
-                                                                          rot).T)
-                        ee_points = current_ee_tgt - self.agent['ee_points_tgt']
-
-                        ee_points_jac_trans, _ = self._get_ee_points_jacobians(ee_link_jacobians,
-                                                                               self.agent['end_effector_points'],
-                                                                               rot)
-                        ee_velocities = self._get_ee_points_velocities(ee_link_jacobians,
-                                                                       self.agent['end_effector_points'],
-                                                                       rot,
-                                                                       last_observations)
-
-                        #
-                        # Concatenate the information that defines the robot state
-                        # vector, typically denoted asrobot_id 'x'.
-                        # state = np.r_[np.reshape(last_observations, -1),
-                        #               np.reshape(ee_points, -1),
-                        #               np.reshape(ee_velocities, -1),]
-
-                        self.ob = np.r_[np.reshape(last_observations, -1),
-                                      np.reshape(ee_points, -1),
-                                      np.reshape(ee_velocities, -1),]
-                        # change here actions if its not working, I need to figure out how to 1. Get current action, run some policy on it and then send it back to the robot to simulate.
-                        # how do you generate actions in OpenAI
-                        # change here actions if its not working, I need to figure out how to 1. Get current action, run some policy on it and then send it back to the robot to simulate.
-                        # how do you generate actions in OpenAI
-                        #if the error is less than 5 mm give good reward, if not give negative reward
-                        if np.linalg.norm(ee_points) < 0.005:
-                            self.reward_dist = 1000 * np.linalg.norm(ee_points)#- 10.0 * np.linalg.norm(ee_points)
-                            # we do not use this and makes the convergence very bad. We need to remove it
-                            # self.reward_ctrl = np.linalg.norm(action)#np.square(action).sum()
-                            self.reward = 100
-                            print("Eucledian dist (mm): ", self.reward_dist)
-                        # if we are close to the goal in 1 cm give positive reward, converting the distance from meters to mm
-                        elif np.linalg.norm(ee_points) < 0.01:
-                            self.reward_dist = 1000 * np.linalg.norm(ee_points)
-                            self.reward = self.reward_dist
-                            # print("Eucledian dist (mm): ", self.reward_dist)
-                        else:
-                            self.reward_dist = - np.linalg.norm(ee_points)
-                            #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
-                            self.reward = self.reward_dist
-                        # self.reward = 2.0 * self.reward_dist + 0.01 * self.reward_ctrl
-                        #removed the control reward, maybe we should add it later.
-                        # TODO: this is something we need to figure out... Should we restart the enviroment to the initial observation every time we hit the target or when we went too far, or both?
-                        # for now setting it to false all the time, meaning the enviroment will never restart.
-                        done = bool(self.rmse_func(ee_points) < 0.01)
-
-                    self._time_lock.release()
-                    # print("done in _step: ", done)
-
+            if self.ob is None or ee_points is None:
+                print("self.ob: ", self.ob)
+                print("ee_points: ", ee_points)
+                done = False
                 rclpy.spin_once(node)
                 time_step += 1
-                # print("time_step: ", time_step)
-        return self.ob, self.reward, done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
-    # def _get_obs(self):
+            else:
+                self.reward_dist = - self.rmse_func(ee_points) #- 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
+                self.reward = 100 * self.reward_dist
+            # print("reward: ",self.reward)
+            #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
 
-    def step(self, action, robot_id=0):
+                if abs(self.reward) < 0.01:
+                    print("Eucledian dist (mm): ", -1000 * self.reward_dist)
+                    self.reward += 10 + self.reward_dist
+                    done = True
+                done = bool(self.rmse_func(ee_points) < 0.01)
 
-        publish_frequencies = []
-        start = timer()
-        record_actions = [[] for i in range(6)]
-        # Check if ROS2 is ok
-        if rclpy.ok():
-            self._time_lock.acquire(True)
-            self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
-            # time.sleep(self.agent["slowness"])
-            self._time_lock.release()
-
-            # print("ROS is ok moving on.")
-
-            # print("Time step: ", time_step)
-            # Only read and process ROS messages if they are fresh.
-            if self._observations_stale[robot_id] is False:
-                # # Acquire the lock to prevent the subscriber thread from
-                # # updating times or observation messages.
-                self._time_lock.acquire(True)
-
-                obs_message = self._observation_msg
-
-                # Make it so that subscriber's thread observation callback
-                # must be called before publishing again.
-                self._observations_stale[robot_id] = False
-
-                # Collect the end effector points and velocities in
-                # cartesian coordinates for the state.
-                # Collect the present joint angles and velocities from ROS for the state.
-                last_observations = self._process_observations(obs_message, self.agent)
-                if last_observations is None:
-                    print("last_observations is empty")
-                else:
-                # # # Get Jacobians from present joint angles and KDL trees
-                # # # The Jacobians consist of a 6x6 matrix getting its from from
-                # # # (# joint angles) x (len[x, y, z] + len[roll, pitch, yaw])
-                    ee_link_jacobians = self._get_jacobians(last_observations)
-                    if self.agent['link_names'][-1] is None:
-                        print("End link is empty!!")
-                    else:
-                        # print(self.agent['link_names'][-1])
-                        trans, rot = forward_kinematics(self.scara_chain,
-                                                    self.agent['link_names'],
-                                                    last_observations[:3],
-                                                    base_link=self.agent['link_names'][0],
-                                                    end_link=self.agent['link_names'][-1])
-                        # #
-                        rotation_matrix = np.eye(4)
-                        rotation_matrix[:3, :3] = rot
-                        rotation_matrix[:3, 3] = trans
-                        # angle, dir, _ = rotation_from_matrix(rotation_matrix)
-                        # #
-                        # current_quaternion = np.array([angle]+dir.tolist())#
-
-                        # I need this calculations for the new reward function, need to send them back to the run scara or calculate them here
-                        current_quaternion = quaternion_from_matrix(rotation_matrix)
-
-                        current_ee_tgt = np.ndarray.flatten(get_ee_points(self.agent['end_effector_points'],
-                                                                          trans,
-                                                                          rot).T)
-                        ee_points = current_ee_tgt - self.agent['ee_points_tgt']
-
-                        ee_points_jac_trans, _ = self._get_ee_points_jacobians(ee_link_jacobians,
-                                                                               self.agent['end_effector_points'],
-                                                                               rot)
-                        ee_velocities = self._get_ee_points_velocities(ee_link_jacobians,
-                                                                       self.agent['end_effector_points'],
-                                                                       rot,
-                                                                       last_observations)
-
-                        #
-                        # Concatenate the information that defines the robot state
-                        # vector, typically denoted asrobot_id 'x'.
-                        state = np.r_[np.reshape(last_observations, -1),
-                                      np.reshape(ee_points, -1),
-                                      np.reshape(ee_velocities, -1),]
-
-                        self.ob = np.r_[np.reshape(last_observations, -1),
-                                      np.reshape(ee_points, -1),
-                                      np.reshape(ee_velocities, -1),]
-
-                        self.reward_dist = - self.rmse_func(ee_points) #- 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
-                        self.reward = 100 * self.reward_dist
-                        # print("reward: ",self.reward)
-                        #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
-
-                        if abs(self.reward) < 0.01:
-                            print("Eucledian dist (mm): ", -1000 * self.reward_dist)
-                            self.reward += 10 + self.reward_dist
-                            done = True
-
-                        done = bool(self.rmse_func(ee_points) < 0.01)
-                    self._time_lock.release()
-
+                self._time_lock.release()
                 rclpy.spin_once(node)
 
+                time_step += 1
+
+                # print("time_step: ", time_step)
+                return self.ob, self.reward, done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
+
+    def step(self, action):
+        """
+        Dont know if we need this but just in case set the obs to None, so always takes fresh values
+        """
+        self.obs = None
+        observations = None
+        """
+        How they do in OpenAI:
+             1. Calculate the reward
+             2. Perform action (do_simulation)
+             3. Get the Observations
+        """
+
+        start = timer()
+        # Check if ROS2 is ok
+        if rclpy.ok():
+            observations, ee_points  = self._get_obs()
+
+            if self.ob is None or ee_points is None:
+                print("self.ob: ", self.ob)
+                print("ee_points: ", ee_points)
+                done = False
+                rclpy.spin_once(node)
+                time_step += 1
+            else:
+                self.reward_dist = - self.rmse_func(ee_points) #- 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
+                self.reward = 100 * self.reward_dist
+                # print("reward: ",self.reward)
+                #self.reward_ctrl = - np.linalg.norm(action)# np.square(action).sum()
+
+                if abs(self.reward) < 0.01:
+                    print("Eucledian dist (mm): ", -1000 * self.reward_dist)
+                    self.reward += 10 + self.reward_dist
+                    done = True
+                    self._time_lock.release()
+                done = bool(self.rmse_func(ee_points) < 0.01)
+
+                self._time_lock.acquire(True)
+                self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+                self._time_lock.release()
+
+                rclpy.spin_once(node)
+                self.ob, ee_points  = self._get_obs()
 
         return self.ob, self.reward, done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
 
@@ -445,7 +357,7 @@ class AgentSCARAROS(object):
         # print("log_distance: ", log_dist)
         return log_dist
 
-    def _get_jacobians(self, state, robot_id=0):
+    def _get_jacobians(self, state):
         """Produce a Jacobian from the urdf that maps from joint angles to x, y, z.
         This makes a 6x6 matrix from 6 joint angles to x, y, z and 3 angles.
         The angles are roll, pitch, and yaw (not Euler angles) and are not needed.
@@ -473,7 +385,7 @@ class AgentSCARAROS(object):
         return ee_jacobians
 
 
-    def _process_observations(self, message, agent, robot_id=0):
+    def _process_observations(self, message, agent):
         """Helper fuinction only called by _run_trial to convert a ROS message
         to joint angles and velocities.
         Check for and handle the case where a message is either malformed
@@ -492,7 +404,7 @@ class AgentSCARAROS(object):
 
                 # Check that all the expected joint values are present in a message.
                 if not all(map(lambda x,y: x in y, message.joint_names,
-                    [self._valid_joint_set[robot_id] for _ in range(len(message.joint_names))])):
+                    [self._valid_joint_set for _ in range(len(message.joint_names))])):
                     raise MSG_INVALID_JOINT_NAMES_DIFFER
                     print("Joints differ")
 
@@ -525,7 +437,7 @@ class AgentSCARAROS(object):
                 # #
 
 
-    def _get_trajectory_message(self, action, agent, robot_id=0):
+    def _get_trajectory_message(self, action, agent):
         """Helper function only called by reset() and run_trial().
         Wraps an action vector of joint angles into a JointTrajectory message.
         The velocities, accelerations, and effort do not control the arm motion"""
