@@ -143,8 +143,9 @@ class ScaraJntsEnv(AgentSCARAROS):
         self.train(env,num_timesteps=5e6, seed=args.seed, save_model_with_prefix=args.save_model_with_prefix, restore_model_from_file=args.restore_model_from_file)
 
     def train(self,env, num_timesteps, seed, save_model_with_prefix, restore_model_from_file):
-        set_global_seeds(seed)
-        env.seed(seed)
+        # remove the seed
+        # set_global_seeds(seed)
+        # env.seed(seed)
 
         with tf.Session(config=tf.ConfigProto()) as session:
             ob_dim = env.observation_space.shape[0]
