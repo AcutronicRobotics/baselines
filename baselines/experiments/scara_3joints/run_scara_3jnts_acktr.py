@@ -98,7 +98,7 @@ class ScaraJntsEnv(AgentSCARAROS):
         # set the number of conditions per iteration.
         # Set the number of trajectory iterations to collect.
         ITERATIONS = 20  # Typically 10.
-        slowness = 2
+        slowness = 1
 
         m_joint_order = copy.deepcopy(JOINT_ORDER)
         m_link_names = copy.deepcopy(LINK_NAMES)
@@ -156,8 +156,8 @@ class ScaraJntsEnv(AgentSCARAROS):
                 policy = GaussianMlpPolicy(ob_dim, ac_dim)
 
             learn(env, policy=policy, vf=vf,
-                gamma=0.99, lam=0.97, timesteps_per_batch=5000,
-                desired_kl=0.02,
+                gamma=0.99, lam=0.97, timesteps_per_batch=1500,
+                desired_kl=0.002,
                 num_timesteps=num_timesteps, animate=False, save_model_with_prefix=save_model_with_prefix,restore_model_from_file=restore_model_from_file)
 
 
