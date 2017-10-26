@@ -131,6 +131,7 @@ class ScaraJntsEnv(AgentSCARAROS):
 
         # self.spec = {'timestep_limit': 5,
         # 'reward_threshold':  950.0,}
+        self.max_episode_steps = 1
 
         env = self
         parser = argparse.ArgumentParser(description='Run Gazebo benchmark.')

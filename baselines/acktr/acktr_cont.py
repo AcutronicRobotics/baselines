@@ -52,7 +52,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
 
     obfilter = ZFilter(env.observation_space.shape)
     # Risto change
-    max_pathlength = 10#env.spec['timestep_limit']
+    max_pathlength = env.max_episode_steps
     stepsize = tf.Variable(initial_value=np.float32(np.array(0.03)), name='stepsize')
     inputs, loss, loss_sampled = policy.update_info
     optim = kfac.KfacOptimizer(learning_rate=stepsize, cold_lr=stepsize*(1-0.9), momentum=0.9, kfac_update=2,\
@@ -96,6 +96,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
             path = rollout(env, policy, max_pathlength, animate=(len(paths)==0 and (i % 10 == 0) and animate), obfilter=obfilter)
             paths.append(path)
             n = pathlength(path)
+            print("path lenght: " ,n)
             timesteps_this_batch += n
             timesteps_so_far += n
             if timesteps_this_batch > timesteps_per_batch:
@@ -135,7 +136,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
             U.eval(tf.assign(stepsize, tf.maximum(min_stepsize, stepsize / 1.5)))
         elif kl < desired_kl / 2:
             logger.log("kl too low")
-            U.eval(tf.assign(stepsize, tf.minimum(max_stepsize, stepsize * 1.5)))            
+            U.eval(tf.assign(stepsize, tf.minimum(max_stepsize, stepsize * 1.5)))
         else:
             logger.log("kl just right!")
 
