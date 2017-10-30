@@ -41,7 +41,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
             yield {"ob" : obs, "rew" : rews, "vpred" : vpreds, "new" : news,
                     "ac" : acs, "prevac" : prevacs, "nextvpred": vpred * (1 - new),
                     "ep_rets" : ep_rets, "ep_lens" : ep_lens}
-            _, vpred = pi.act(stochastic, ob)            
+            _, vpred = pi.act(stochastic, ob)
             # Be careful!!! if you change the downstream algorithm to aggregate
             # several of these batches, then be sure to do a deepcopy
             ep_rets = []
@@ -92,7 +92,7 @@ def learn(env, policy_func, *,
         ):
     nworkers = MPI.COMM_WORLD.Get_size()
     rank = MPI.COMM_WORLD.Get_rank()
-    np.set_printoptions(precision=3)    
+    np.set_printoptions(precision=3)
     # Setup losses and stuff
     # ----------------------------------------
     ob_space = env.observation_space
@@ -157,7 +157,7 @@ def learn(env, policy_func, *,
             print(colorize("done in %.3f seconds"%(time.time() - tstart), color='magenta'))
         else:
             yield
-    
+
     def allmean(x):
         assert isinstance(x, np.ndarray)
         out = np.empty_like(x)
@@ -185,7 +185,7 @@ def learn(env, policy_func, *,
 
     assert sum([max_iters>0, max_timesteps>0, max_episodes>0])==1
 
-    while True:        
+    while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
             break
@@ -260,7 +260,7 @@ def learn(env, policy_func, *,
         with timed("vf"):
 
             for _ in range(vf_iters):
-                for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]), 
+                for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
                 include_final_partial_batch=False, batch_size=64):
                     g = allmean(compute_vflossandgrad(mbob, mbret))
                     vfadam.update(g, vf_stepsize)
@@ -283,6 +283,7 @@ def learn(env, policy_func, *,
         logger.record_tabular("EpisodesSoFar", episodes_so_far)
         logger.record_tabular("TimestepsSoFar", timesteps_so_far)
         logger.record_tabular("TimeElapsed", time.time() - tstart)
+
 
         if rank==0:
             logger.dump_tabular()
