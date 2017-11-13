@@ -9,6 +9,7 @@ from collections import deque
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.cg import cg
 from contextlib import contextmanager
+import os
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     # Initialize state variables
@@ -88,7 +89,8 @@ def learn(env, policy_func, *,
         vf_stepsize=3e-4,
         vf_iters =3,
         max_timesteps=0, max_episodes=0, max_iters=0,  # time constraint
-        callback=None
+        callback=None,
+        save_model_with_prefix
         ):
     nworkers = MPI.COMM_WORLD.Get_size()
     rank = MPI.COMM_WORLD.Get_rank()
@@ -278,6 +280,18 @@ def learn(env, policy_func, *,
         logger.record_tabular("EpThisIter", len(lens))
         episodes_so_far += len(lens)
         timesteps_so_far += sum(lens)
+
+        """
+        Save the model at every itteration
+        """
+        if save_model_with_prefix:
+            basePath=os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/experiments/" + save_model_with_prefix + "/saved_models"
+            if not os.path.exists(basePath):
+                os.makedirs(basePath)
+            modelF= basePath + '/' + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
+            U.save_state(modelF)
+            logger.log("Saved model to file :{}".format(modelF))
+
         iters_so_far += 1
 
         logger.record_tabular("EpisodesSoFar", episodes_so_far)
