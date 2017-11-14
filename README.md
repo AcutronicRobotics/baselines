@@ -6,8 +6,8 @@ Baselines is a fork of OpenAI's baselines repository with a set of high-quality 
 | -------- | ------- | -------- | -------- |
 |[A2C](baselines/a2c) | WIP | discrete | |
 |[A3C](baselines/a3c) | WIP | discrete, continious (WIP) | |
-|[ACKTR](baselines/acktr) | **working** | continuous, discrete | [continuous](ros_rl/examples/modular_scara_3dof_v3/train_acktr.py) |  
+|[ACKTR](baselines/acktr) | **working** | continuous, discrete | [continuous](https://github.com/erlerobot/ros_rl/tree/master/examples/modular_scara_3dof_v3/train_acktr.py) |  
 |[DDPG](baselines/ddpg) | | | |
 |[DQN](baselines/deepq) | WIP | | |
-|[PPO](baselines/ppo1) | **working** | continuous | [continuous](ros_rl/examples/modular_scara_3dof_v3/train_ppo1.py) |
+|[PPO](baselines/ppo1) | **working** | continuous | [continuous](https://github.com/erlerobot/ros_rl/tree/master/examples/modular_scara_3dof_v3/train_ppo1.py) |
 |[TRPO](baselines/trpo_mpi) | | | |
