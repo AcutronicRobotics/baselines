@@ -7,7 +7,7 @@ def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False):
         out = inpt
         for hidden in hiddens:
             out = layers.fully_connected(out, num_outputs=hidden, activation_fn=None)
-            if layer_norm:
+            if layer_norm: # refer to https://arxiv.org/abs/1607.06450.
                 out = layers.layer_norm(out, center=True, scale=True)
             out = tf.nn.relu(out)
         q_out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
@@ -88,4 +88,3 @@ def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
     """
 
     return lambda *args, **kwargs: _cnn_to_mlp(convs, hiddens, dueling, layer_norm=layer_norm, *args, **kwargs)
-
