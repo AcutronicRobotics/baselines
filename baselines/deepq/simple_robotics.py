@@ -251,6 +251,20 @@ def learn(env,
 
     act = ActWrapper(act, act_params)
 
+    # TODO: include also de Prioritized buffer
+    # # Create the replay buffer
+    # if prioritized_replay:
+    #     replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
+    #     if prioritized_replay_beta_iters is None:
+    #         prioritized_replay_beta_iters = max_timesteps
+    #     beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
+    #                                    initial_p=prioritized_replay_beta0,
+    #                                    final_p=1.0)
+    # else:
+    #     replay_buffer = ReplayBuffer(buffer_size)
+    #     beta_schedule = None
+
+    # Simplified Replay Buffer
     replay_buffer = ReplayBuffer(buffer_size)
     beta_schedule = None
 
@@ -277,18 +291,37 @@ def learn(env,
             # Take action and update exploration to the newest value
             kwargs = {}
 
+            ## TODO: review in more detail
+            # if not param_noise:
+            #     update_eps = exploration.value(t)
+            #     update_param_noise_threshold = 0.
+            # else:
+            #     update_eps = 0.
+            #     # Compute the threshold such that the KL divergence between perturbed and non-perturbed
+            #     # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
+            #     # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
+            #     # for detailed explanation.
+            #     update_param_noise_threshold = -np.log(1. - exploration.value(t) + exploration.value(t) / float(env.action_space.n))
+            #     kwargs['reset'] = reset
+            #     kwargs['update_param_noise_threshold'] = update_param_noise_threshold
+            #     kwargs['update_param_noise_scale'] = True
+            # action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
+            # if isinstance(env.action_space, gym.spaces.MultiBinary):
+            #     env_action = np.zeros(env.action_space.n)
+            #     env_action[action] = 1
+            # else:
+            #     env_action = action
+
+
             update_eps = exploration.value(t)
             update_param_noise_threshold = 0.
-
             # Choose action
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
             #action = random.choice(actions)
             #action = 6 #Action in order for the robot not to move
 
             reset = False
-
             new_obs, rew, done, _  = step(env, actions_discr[action], obs[:3])
-
             # Store transition in the replay buffer.
             replay_buffer.add(obs, action, rew, new_obs, float(done))
             obs = new_obs
@@ -302,12 +335,26 @@ def learn(env,
             if t > learning_starts and t % train_freq == 0:
                 print("Learning starts ----")
 
+                # TODO review if prioritized_replay is needed
+                # # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
+                # if prioritized_replay:
+                #     experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
+                #     (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
+                # else:
+                #     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
+                #     weights, batch_idxes = np.ones_like(rewards), None
+
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
                 obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                 weights, batch_idxes = np.ones_like(rewards), None
 
                 #td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
                 [td_errors, weighted_error] = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+
+                # TODO review if prioritized_replay is needed
+                # if prioritized_replay:
+                #     new_priorities = np.abs(td_errors) + prioritized_replay_eps
+                #     replay_buffer.update_priorities(batch_idxes, new_priorities)
 
                 print("td_errors", td_errors)
                 print("weighted_error", weighted_error)
