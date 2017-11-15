@@ -7,6 +7,7 @@ import cloudpickle
 import numpy as np
 import random
 import gym
+from gym_gazebo.envs import gazebo_env
 import baselines.common.tf_util as U
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
@@ -194,6 +195,16 @@ def learn(env,
     sess.__enter__()
 
 
+    #TODO: remove hard coded name
+    env_name = "GazeboModularScara3DOF-v2"
+
+
+    #Directory for log and Tensorboard data
+    #outdir = '/tmp/rosrl/GazeboModularScara3DOF-v2/deepq'
+    outdir = '/tmp/rosrl/GazeboModularScara3DOF-v2/deepq/prioritized_replay'
+    summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
+
+
     #TODO This should not go here. Instead pass both action_no and actions as arguments to learn function
     #Discrete actions
     goal_average_steps = 2
@@ -212,9 +223,9 @@ def learn(env,
     action_bins = pandas.cut([-np.pi/2, np.pi/2], bins=n_bins, retbins=True)[1][1:-1]
 
     difference_bins = abs(joint1_bins[0] - joint1_bins[1])
-    actions_discr = [(5*difference_bins, 0.0, 0.0), (-5*difference_bins, 0.0, 0.0),
-         (0.0, 5*difference_bins, 0.0), (0.0, -5*difference_bins, 0.0),
-         (0.0, 0.0, 5*difference_bins), (0.0, 0.0, -5*difference_bins),
+    actions_discr = [(difference_bins, 0.0, 0.0), (-difference_bins, 0.0, 0.0),
+         (0.0, difference_bins, 0.0), (0.0, -difference_bins, 0.0),
+         (0.0, 0.0, difference_bins), (0.0, 0.0, -difference_bins),
          (0.0, 0.0, 0.0)]
     action_no = 7
     actions = [0, 1, 2, 3, 4, 5, 6]
@@ -253,16 +264,16 @@ def learn(env,
 
     # TODO: include also de Prioritized buffer
     # # Create the replay buffer
-    # if prioritized_replay:
-    #     replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
-    #     if prioritized_replay_beta_iters is None:
-    #         prioritized_replay_beta_iters = max_timesteps
-    #     beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
-    #                                    initial_p=prioritized_replay_beta0,
-    #                                    final_p=1.0)
-    # else:
-    #     replay_buffer = ReplayBuffer(buffer_size)
-    #     beta_schedule = None
+    if prioritized_replay:
+        replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
+        if prioritized_replay_beta_iters is None:
+            prioritized_replay_beta_iters = max_timesteps
+        beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
+                                        initial_p=prioritized_replay_beta0,
+                                        final_p=1.0)
+    else:
+        replay_buffer = ReplayBuffer(buffer_size)
+        beta_schedule = None
 
     # Simplified Replay Buffer
     replay_buffer = ReplayBuffer(buffer_size)
@@ -280,6 +291,8 @@ def learn(env,
     episode_rewards = [0.0]
     saved_mean_reward = None
     obs = env.reset()
+    logger.log("Reset") ####NORA
+    print("Reset") ####NORA
     reset = True
     with tempfile.TemporaryDirectory() as td:
         model_saved = False
@@ -292,33 +305,33 @@ def learn(env,
             kwargs = {}
 
             ## TODO: review in more detail
-            # if not param_noise:
-            #     update_eps = exploration.value(t)
-            #     update_param_noise_threshold = 0.
-            # else:
-            #     update_eps = 0.
+            if not param_noise:
+                 update_eps = exploration.value(t)
+                 update_param_noise_threshold = 0.
+            else:
+                 update_eps = 0.
             #     # Compute the threshold such that the KL divergence between perturbed and non-perturbed
             #     # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
             #     # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
             #     # for detailed explanation.
-            #     update_param_noise_threshold = -np.log(1. - exploration.value(t) + exploration.value(t) / float(env.action_space.n))
-            #     kwargs['reset'] = reset
-            #     kwargs['update_param_noise_threshold'] = update_param_noise_threshold
-            #     kwargs['update_param_noise_scale'] = True
-            # action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
-            # if isinstance(env.action_space, gym.spaces.MultiBinary):
-            #     env_action = np.zeros(env.action_space.n)
-            #     env_action[action] = 1
-            # else:
-            #     env_action = action
+                 update_param_noise_threshold = -np.log(1. - exploration.value(t) + exploration.value(t) / float(env.action_space.n))
+                 kwargs['reset'] = reset
+                 kwargs['update_param_noise_threshold'] = update_param_noise_threshold
+                 kwargs['update_param_noise_scale'] = True
+            action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
+            if isinstance(env.action_space, gym.spaces.MultiBinary):
+                 env_action = np.zeros(env.action_space.n)
+                 env_action[action] = 1
+            else:
+                 env_action = action
 
 
             update_eps = exploration.value(t)
             update_param_noise_threshold = 0.
+
             # Choose action
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
-            #action = random.choice(actions)
-            #action = 6 #Action in order for the robot not to move
+
 
             reset = False
             new_obs, rew, done, _  = step(env, actions_discr[action], obs[:3])
@@ -327,54 +340,71 @@ def learn(env,
             obs = new_obs
 
             episode_rewards[-1] += rew
+
+
+            #TENSORBOARD that works
+            #summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1])])
+            #summary_writer.add_summary(summary, t)
+            #
+
             if done:
+
+                summary = tf.Summary(value=[tf.Summary.Value(tag="Mean episode reward", simple_value = episode_rewards[-1]/t)])
+                summary_writer.add_summary(summary, t)
                 obs = env.reset()
                 episode_rewards.append(0.0)
                 reset = True
 
             if t > learning_starts and t % train_freq == 0:
-                print("Learning starts ----")
 
                 # TODO review if prioritized_replay is needed
-                # # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
-                # if prioritized_replay:
-                #     experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
-                #     (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
-                # else:
-                #     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
-                #     weights, batch_idxes = np.ones_like(rewards), None
+                # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
+                if prioritized_replay:
+                     experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
+                     (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
+                else:
+                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
+                     weights, batch_idxes = np.ones_like(rewards), None
 
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
                 obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                 weights, batch_idxes = np.ones_like(rewards), None
 
                 #td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
-                [td_errors, weighted_error] = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+                #[td_errors, weighted_error] = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+                [td_error, weighted_error, q_t_selected_target, rew_t_ph] = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+
+                #logger.log("Evaluating losses...")
+                #logger.log("q_t_selected_target", q_t_selected_target)
+                #logger.log("Episode reward", episode_rewards[-1])
 
                 # TODO review if prioritized_replay is needed
-                # if prioritized_replay:
-                #     new_priorities = np.abs(td_errors) + prioritized_replay_eps
-                #     replay_buffer.update_priorities(batch_idxes, new_priorities)
+                if prioritized_replay:
+                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
+                     replay_buffer.update_priorities(batch_idxes, new_priorities)
 
-                print("td_errors", td_errors)
-                print("weighted_error", weighted_error)
-
-                # Tensorboard summary for average loss
-                #tf.scalar_summary("av_td_error", mean(td_errors))
-                #tf.scalar_summary("av_weighted_error", mean(weighted_error))
 
             if t > learning_starts and t % target_network_update_freq == 0:
                 # Update target network periodically.
                 update_target()
 
+
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
             num_episodes = len(episode_rewards)
+
             if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", num_episodes)
                 logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()
+
+                print("steps", t)
+                print("episodes", num_episodes)
+                print("mean 100 episode reward", mean_100ep_reward)
+                print("% time spent exploring", int(100 * exploration.value(t)))
+
+
 
             if (checkpoint_freq is not None and t > learning_starts and
                     num_episodes > 100 and t % checkpoint_freq == 0):

@@ -95,7 +95,7 @@ The functions in this file can are used to create the following functions:
 """
 import tensorflow as tf
 import baselines.common.tf_util as U
-
+from baselines import logger
 
 def default_param_noise_filter(var):
     if var not in tf.trainable_variables():
@@ -335,6 +335,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
     debug: {str: function}
         a bunch of functions to print debug data like q_values.
     """
+
     if param_noise:
         act_f = build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope=scope, reuse=reuse,
             param_noise_filter_func=param_noise_filter_func)
@@ -362,7 +363,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
 
         # q scores for actions which we know were selected in the given state.
         q_t_selected = tf.reduce_sum(q_t * tf.one_hot(act_t_ph, num_actions), 1)
-
+        #logger.log("q_t_selected", q_t_selected) ###NORA
 
         # compute estimate of best possible value starting from state at t + 1
         if double_q:
@@ -376,10 +377,29 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         # compute RHS of bellman equation
         q_t_selected_target = rew_t_ph + gamma * q_tp1_best_masked
 
+        #logger.log("q_t_selected_target", q_t_selected_target) ###NORA
+
+
+        #qt_selected_target
+        #summary_qt = tf.Summary(value=[tf.Summary.Value(tag="q_t_selected_target", simple_value=q_t_selected_target)
+        #summary_writer.add_summary(summary, t)
+        #summary_writer.flush()
+
         # compute the error (potentially clipped)
         td_error = q_t_selected - tf.stop_gradient(q_t_selected_target)
+
+
+        #summary_td = tf.Summary(value=[tf.Summary.Value(tag="td_error", simple_value=td_error])
+        #summary_writer.add_summary(summary, t)
+        #summary_writer.flush()
+
+
+
         errors = U.huber_loss(td_error)
         weighted_error = tf.reduce_mean(importance_weights_ph * errors)
+
+        #logger.log("weighted_error", weighted_error)
+        #logger.log("td_error", td_error)
 
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
@@ -407,12 +427,15 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
                 done_mask_ph,
                 importance_weights_ph
             ],
-            outputs=[td_error, weighted_error],
+            outputs=[td_error, weighted_error, q_t_selected_target, rew_t_ph],
+            #outputs=[td_error, weighted_error],
             #outputs=td_error,
             updates=[optimize_expr]
         )
         update_target = U.function([], [], updates=[update_target_expr])
 
         q_values = U.function([obs_t_input], q_t)
+
+
 
         return act_f, train, update_target, {'q_values': q_values}
