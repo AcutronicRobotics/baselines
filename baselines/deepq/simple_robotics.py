@@ -12,11 +12,9 @@ import baselines.common.tf_util as U
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
 
-
 from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from baselines.deepq.build_graph_robotics import build_train
-
 
 class ActWrapper(object):
     def __init__(self, act, act_params):
@@ -37,7 +35,6 @@ class ActWrapper(object):
 
             zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(td)
             U.load_state(os.path.join(td, "model"))
-
         return ActWrapper(act, act_params)
 
     def __call__(self, *args, **kwargs):
@@ -190,20 +187,12 @@ def learn(env,
 
 
     # Create all the functions necessary to train the model
-
     sess = tf.Session()
     sess.__enter__()
 
-
-    #TODO: remove hard coded name
-    env_name = "GazeboModularScara3DOF-v2"
-
-
     #Directory for log and Tensorboard data
-    #outdir = '/tmp/rosrl/GazeboModularScara3DOF-v2/deepq'
-    outdir = '/tmp/rosrl/GazeboModularScara3DOF-v2/deepq/prioritized_replay'
+    outdir = '/tmp/rosrl/' + str(env.__class__.__name__) +'/deepq/'
     summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
-
 
     #TODO This should not go here. Instead pass both action_no and actions as arguments to learn function
     #Discrete actions
@@ -213,7 +202,6 @@ def learn(env,
     n_bins = 10
     epsilon_decay_rate = 0.99 ########
     it = 1 ######
-
 
     # Number of states is huge so in order to simplify the situation
     # typically, we discretize the space to: n_bins ** number_of_features
@@ -240,8 +228,6 @@ def learn(env,
     #writer = tf.train.SummaryWriter(logs_path, graph=tf.get_default_graph())
     #summary_writer = tf.summary.FileWriter(logs_path,graph=tf.get_default_graph())
 
-
-
     act, train, update_target, debug = build_train(
         make_obs_ph=make_obs_ph,
         q_func=q_func,
@@ -251,7 +237,6 @@ def learn(env,
         grad_norm_clipping=10,
         param_noise=param_noise
     )
-
 
     act_params = {
         'make_obs_ph': make_obs_ph,
@@ -325,13 +310,11 @@ def learn(env,
             else:
                  env_action = action
 
-
             update_eps = exploration.value(t)
             update_param_noise_threshold = 0.
 
             # Choose action
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
-
 
             reset = False
             new_obs, rew, done, _  = step(env, actions_discr[action], obs[:3])
@@ -340,7 +323,6 @@ def learn(env,
             obs = new_obs
 
             episode_rewards[-1] += rew
-
 
             #TENSORBOARD that works
             #summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1])])
@@ -383,11 +365,9 @@ def learn(env,
                      new_priorities = np.abs(td_errors) + prioritized_replay_eps
                      replay_buffer.update_priorities(batch_idxes, new_priorities)
 
-
             if t > learning_starts and t % target_network_update_freq == 0:
                 # Update target network periodically.
                 update_target()
-
 
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
             num_episodes = len(episode_rewards)
@@ -403,8 +383,6 @@ def learn(env,
                 print("episodes", num_episodes)
                 print("mean 100 episode reward", mean_100ep_reward)
                 print("% time spent exploring", int(100 * exploration.value(t)))
-
-
 
             if (checkpoint_freq is not None and t > learning_starts and
                     num_episodes > 100 and t % checkpoint_freq == 0):
