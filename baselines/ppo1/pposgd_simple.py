@@ -211,10 +211,11 @@ def learn(env, policy_func, *,
         Save the model at every itteration
         """
         if save_model_with_prefix:
-            basePath=os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/experiments/" + save_model_with_prefix + "/saved_models"
+            # basePath=os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/experiments/" + save_model_with_prefix + "/saved_models"
+            basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
             if not os.path.exists(basePath):
                 os.makedirs(basePath)
-            modelF= basePath + '/' + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
+            modelF= basePath + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
             U.save_state(modelF)
             logger.log("Saved model to file :{}".format(modelF))
 
