@@ -61,10 +61,14 @@ def main():
             print("action", action)
             print("action_bins[action]", action_bins[action])
             obs, rew, done, _  = step(env, action_bins[action], obs[:3])
+            print("reward", rew)
+            print("observation", obs[:3])
             episode_rew += rew
+            print("accumulated_reward", episode_rew)
+            print("done", done)
         print("Episode reward", episode_rew)
 
 
-        
+
 if __name__ == '__main__':
     main()
