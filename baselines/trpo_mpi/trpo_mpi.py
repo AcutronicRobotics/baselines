@@ -187,6 +187,11 @@ def learn(env, policy_func, *,
 
     assert sum([max_iters>0, max_timesteps>0, max_episodes>0])==1
 
+    if save_model_with_prefix:
+        basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/trpo/'
+        summary_writer = tf.summary.FileWriter(basePath, graph=tf.get_default_graph())
+
+
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -285,8 +290,9 @@ def learn(env, policy_func, *,
         Save the model at every itteration
         """
         if save_model_with_prefix:
-            # basePath=os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/experiments/" + save_model_with_prefix + "/saved_models"
             basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/trpo/'
+            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))
+            summary_writer.add_summary(summary, i)
             if not os.path.exists(basePath):
                 os.makedirs(basePath)
             modelF= basePath + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"

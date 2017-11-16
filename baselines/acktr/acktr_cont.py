@@ -84,6 +84,11 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
 
     i = 0
     timesteps_so_far = 0
+
+    if save_model_with_prefix:
+        basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/acktr/'
+        summary_writer = tf.summary.FileWriter(basePath, graph=tf.get_default_graph())
+
     while True:
         if timesteps_so_far > num_timesteps:
             break
@@ -144,6 +149,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
         logger.record_tabular("EpRewSEM", np.std([path["reward"].sum()/np.sqrt(len(paths)) for path in paths]))
         logger.record_tabular("EpLenMean", np.mean([pathlength(path) for path in paths]))
         logger.record_tabular("KL", kl)
+
         if callback:
             callback()
         logger.dump_tabular()
@@ -153,7 +159,8 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
         """
         if save_model_with_prefix:
             basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/acktr/'
-            # basePath=os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/experiments/" + save_model_with_prefix + "/saved_models"
+            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean([path["reward"].sum() for path in paths]))])
+            summary_writer.add_summary(summary, i)
             if not os.path.exists(basePath):
                 os.makedirs(basePath)
             modelF= basePath + save_model_with_prefix+"_afterIter_"+str(i)+".model"
