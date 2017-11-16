@@ -10,18 +10,12 @@ from  baselines.deepq import build_graph_robotics
 from  baselines.deepq import replay_buffer
 from  baselines.deepq.simple_robotics import learn, load
 
-
 # Use algorithms from baselines
 #from baselines import deepq
-
-
 def callback(lcl, glb):
     # stop training if reward exceeds 199
     is_solved = lcl['t'] > 100 and sum(lcl['episode_rewards'][-101:-1]) / 100 >= 199
     return is_solved
-
-
-
 
 def main():
     env = gym.make("GazeboModularScara3DOF-v2")
@@ -33,8 +27,6 @@ def main():
     n_bins = 10
     epsilon_decay_rate = 0.99 ########
     it = 1 ######
-
-
 
     # Number of states is huge so in order to simplify the situation
     # typically, we discretize the space to: n_bins ** number_of_features
@@ -49,9 +41,7 @@ def main():
             (0.0, 0.0, difference_bins), (0.0, 0.0, -difference_bins),
             (0.0, 0.0, 0.0)]
     discrete_action_space = spaces.Discrete(7)
-
     model = models.mlp([64])
-
 
     act = learn(
         env,
@@ -65,13 +55,10 @@ def main():
         exploration_fraction=0.1,
         exploration_final_eps=0.02,
         print_freq=10,
-        callback=callback
-    )
-
+        callback=callback)
 
     #print("Saving model to cartpole_model.pkl")
     act.save("scara_model.pkl")
-
 
 if __name__ == '__main__':
     main()
