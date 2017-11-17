@@ -101,7 +101,6 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
             path = rollout(env, policy, max_pathlength, animate=(len(paths)==0 and (i % 10 == 0) and animate), obfilter=obfilter)
             paths.append(path)
             n = pathlength(path)
-            # print("path lenght: " ,n)
             timesteps_this_batch += n
             timesteps_so_far += n
             if timesteps_this_batch > timesteps_per_batch:

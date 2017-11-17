@@ -291,8 +291,8 @@ def learn(env, policy_func, *,
         """
         if save_model_with_prefix:
             basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/trpo/'
-            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))
-            summary_writer.add_summary(summary, i)
+            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+            summary_writer.add_summary(summary, iters_so_far)
             if not os.path.exists(basePath):
                 os.makedirs(basePath)
             modelF= basePath + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
