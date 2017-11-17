@@ -281,7 +281,7 @@ def learn(env,
 
         model_saved = False
         model_file = os.path.join(td, "model")
-        for e in range(100): # run 10 episodes
+        for e in range(200): # run 10 episodes
             print("Episode: ", e)
             # reset the environment
             obs = env.reset()
