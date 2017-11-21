@@ -7,7 +7,7 @@
         "lr" : {
             "type" : "FLOAT",
             "size" : 1,
-            "min"  : 0.00001,
+            "min"  : 1e-05,
             "max"  : 0.1
         },
         "gamma" : {
