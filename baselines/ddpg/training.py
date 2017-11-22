@@ -35,7 +35,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         saver = tf.train.Saver()
     else:
         saver = None
-    
+
     step = 0
     episode = 0
     eval_episode_rewards_history = deque(maxlen=100)
@@ -154,7 +154,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             combined_stats['rollout/actions_mean'] = mpi_mean(epoch_actions)
             combined_stats['rollout/actions_std'] = mpi_std(epoch_actions)
             combined_stats['rollout/Q_mean'] = mpi_mean(epoch_qs)
-    
+
             # Train statistics.
             combined_stats['train/loss_actor'] = mpi_mean(epoch_actor_losses)
             combined_stats['train/loss_critic'] = mpi_mean(epoch_critic_losses)
@@ -173,7 +173,15 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             combined_stats['total/episodes'] = mpi_mean(episodes)
             combined_stats['total/epochs'] = epoch + 1
             combined_stats['total/steps'] = t
-            
+
+            print("rollout/return", mpi_mean(epoch_episode_rewards)
+            print("eval/return", mpi_mean(eval_episode_rewards)
+
+            print("type(rollout/return)", type(mpi_mean(epoch_episode_rewards))
+            print("type(eval/return)", type(mpi_mean(eval_episode_rewards))
+
+
+
             for key in sorted(combined_stats.keys()):
                 logger.record_tabular(key, combined_stats[key])
             logger.dump_tabular()
@@ -187,3 +195,4 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
                         pickle.dump(eval_env.get_state(), f)
 
+             return mpi_mean(epoch_episode_rewards) #Required for spearmint hyperparameter optimization
