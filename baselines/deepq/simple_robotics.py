@@ -278,15 +278,18 @@ def learn(env,
         summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
         # render the environment to visualize the progress
         env.render()
-
+        sim_r = 0
+        sim_t = 0
         model_saved = False
         model_file = os.path.join(td, "model")
-        for e in range(200): # run 10 episodes
+        for e in range(20): # run 10 episodes
             print("Episode: ", e)
             # reset the environment
             obs = env.reset()
             print("observation: ", obs[:3])
             episode_rewards = [0.0]
+
+
             for t in range(max_timesteps):
                 if callback is not None:
                     if callback(locals(), globals()):
@@ -333,6 +336,10 @@ def learn(env,
                 summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1]/(t + 1))])
                 summary_writer.add_summary(summary, t+ e*max_timesteps)
                 # print("average episode reward: ", episode_rewards[-1]/(t + 1))
+                print("sim_r", sim_r)
+                print("sim_t", sim_t)
+                sim_r += rew
+                sim_t += 1
 
                 if done:
                     # summary = tf.Summary(value=[tf.Summary.Value(tag="Mean episode reward", simple_value = episode_rewards[-1]/(t + 1))])
@@ -373,7 +380,12 @@ def learn(env,
                     # Update target network periodically.
                     update_target()
 
-                mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
+                mean_100ep_reward = round(np.mean(episode_rewards[-6:-1]), 1)
+                #print("SIMPLE ROBOTICS -> Episode rewards",episode_rewards)
+                #print("SIMPLE ROBOTICS -> np.mean(Episode rewards)", len(episode_rewards))
+                #print("SIMPLE ROBOTICS -> mean_100ep_reward", mean_100ep_reward)
+                #print("line 383 -> SIMULATION_REWARD", sim_r / 5 * max_timesteps)
+
                 num_episodes = len(episode_rewards)
 
                 if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
@@ -402,4 +414,6 @@ def learn(env,
                 logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
             U.load_state(model_file)
 
-    return act
+    opt_r = 1-(sim_r / sim_t )
+    print("OPT_r", opt_r)
+    return act, opt_r
