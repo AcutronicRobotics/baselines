@@ -170,3 +170,4 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
 
     coord.request_stop()
     coord.join(enqueue_threads)
+    return np.mean([path["reward"].sum() for path in paths]) #Needed for hyperparameter optimization
