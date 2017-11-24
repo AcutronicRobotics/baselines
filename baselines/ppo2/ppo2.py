@@ -238,6 +238,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             savepath = osp.join(checkdir, '%.5i'%update)
             print('Saving to', savepath)
             model.save(savepath)
+    return safemean([epinfo['r'] for epinfo in epinfobuf])
     env.close()
 
 def safemean(xs):
