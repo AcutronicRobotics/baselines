@@ -208,6 +208,9 @@ def learn(env, policy_func, *,
         logger.record_tabular("EpLenMean", np.mean(lenbuffer))
         logger.record_tabular("EpRewMean", np.mean(rewbuffer))
         logger.record_tabular("EpThisIter", len(lens))
+
+        print("Len(lenbuffer)", len(lenbuffer) )
+        print("Len(EpRewMean)", len(rewbuffer))
         episodes_so_far += len(lens)
         timesteps_so_far += sum(lens)
 
@@ -230,8 +233,9 @@ def learn(env, policy_func, *,
         logger.record_tabular("TimeElapsed", time.time() - tstart)
         if MPI.COMM_WORLD.Get_rank()==0:
             logger.dump_tabular()
+    
+    return np.mean(rewbuffer)
 
-        return np.mean(rewbuffer)
 
 
 def flatten_lists(listoflists):
