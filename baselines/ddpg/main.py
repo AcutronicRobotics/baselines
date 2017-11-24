@@ -13,15 +13,17 @@ from baselines.ddpg.memory import Memory
 from baselines.ddpg.noise import *
 
 import gym
+import gym_gazebo
 import tensorflow as tf
 from mpi4py import MPI
 
 def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
+    env_id = "GazeboModularScara3DOF-v2"
     # Configure things.
     rank = MPI.COMM_WORLD.Get_rank()
     if rank != 0:
         logger.set_level(logger.DISABLED)
-
+    print("line 26")
     # Create envs.
     env = gym.make(env_id)
     env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
@@ -58,7 +60,7 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
     critic = Critic(layer_norm=layer_norm)
     actor = Actor(nb_actions, layer_norm=layer_norm)
-
+    print("line 63")
     # Seed everything to make things reproducible.
     seed = seed + 1000000 * rank
     logger.info('rank {}: seed={}, logdir={}'.format(rank, seed, logger.get_dir()))
@@ -71,8 +73,10 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     # Disable logging for rank != 0 to avoid noise.
     if rank == 0:
         start_time = time.time()
+    print("line 76")
     training.train(env=env, eval_env=eval_env, param_noise=param_noise,
         action_noise=action_noise, actor=actor, critic=critic, memory=memory, **kwargs)
+    print("line 79")    
     env.close()
     if eval_env is not None:
         eval_env.close()
