@@ -93,6 +93,7 @@ def learn(env, policy_func, *,
     ob_space = env.observation_space
     ac_space = env.action_space
     pi = policy_func("pi", ob_space, ac_space) # Construct network for new policy
+    print("pi: ", pi)
     oldpi = policy_func("oldpi", ob_space, ac_space) # Network for old policy
     atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
@@ -218,14 +219,15 @@ def learn(env, policy_func, *,
         Save the model at every itteration
         """
         if save_model_with_prefix:
-            basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
-            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-            summary_writer.add_summary(summary, iters_so_far)
-            if not os.path.exists(basePath):
-                os.makedirs(basePath)
-            modelF= basePath + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
-            U.save_state(modelF)
-            logger.log("Saved model to file :{}".format(modelF))
+            if np.mean(rewbuffer) > -10.0:
+                basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
+                summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+                summary_writer.add_summary(summary, iters_so_far)
+                if not os.path.exists(basePath):
+                    os.makedirs(basePath)
+                modelF= basePath + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
+                U.save_state(modelF)
+                logger.log("Saved model to file :{}".format(modelF))
 
         iters_so_far += 1
         logger.record_tabular("EpisodesSoFar", episodes_so_far)
@@ -233,7 +235,7 @@ def learn(env, policy_func, *,
         logger.record_tabular("TimeElapsed", time.time() - tstart)
         if MPI.COMM_WORLD.Get_rank()==0:
             logger.dump_tabular()
-    
+
     return np.mean(rewbuffer)
 
 
