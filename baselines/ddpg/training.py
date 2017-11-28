@@ -189,15 +189,10 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 			combined_stats['total/steps'] = t
 
 
-			print("sim_r/sim_t", sim_r/sim_t)
-
-			print("rollout/return", np.mean(epoch_episode_rewards))
-			print("eval/return", np.mean(eval_episode_rewards))
 
 			logger.info('sim_r/sim_t %d:',sim_r/sim_t)
 			#logger.info('rollout/return %d:',np.mean(epoch_episode_rewards))
 			#logger.info('eval/return %d:',np.mean(eval_episode_rewards))
-			return np.mean(epoch_episode_rewards)
 
 
 			for key in sorted(combined_stats.keys()):
@@ -212,3 +207,4 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 				if eval_env and hasattr(eval_env, 'get_state'):
 					with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
 						pickle.dump(eval_env.get_state(), f)
+                return (1-sim_r/sim_t)
