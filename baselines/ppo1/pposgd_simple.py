@@ -93,7 +93,6 @@ def learn(env, policy_func, *,
     ob_space = env.observation_space
     ac_space = env.action_space
     pi = policy_func("pi", ob_space, ac_space) # Construct network for new policy
-    print("pi: ", pi)
     oldpi = policy_func("oldpi", ob_space, ac_space) # Network for old policy
     atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
@@ -235,6 +234,10 @@ def learn(env, policy_func, *,
         logger.record_tabular("TimeElapsed", time.time() - tstart)
         if MPI.COMM_WORLD.Get_rank()==0:
             logger.dump_tabular()
+
+    # U.get_session().close()
+    # # U.reset()
+    # # tf.reset_default_graph()
 
     return np.mean(rewbuffer)
 

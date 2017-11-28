@@ -7,22 +7,28 @@ from baselines.common.distributions import make_pdtype
 class MlpPolicy(object):
     recurrent = False
     def __init__(self, name, *args, **kwargs):
-        with tf.variable_scope(name):
-            # tf.get_variable_scope().reuse_variables()
-            self._init(*args, **kwargs)
+        print("name of the mlp is: ", name)
+        with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
             self.scope = tf.get_variable_scope().name
-            print("calling MlpPolicy: ",self.scope)
+            print("calling MlpPolicy: ", self.scope)
+            self._init(*args, **kwargs)
 
     def _init(self, ob_space, ac_space, hid_size, num_hid_layers, gaussian_fixed_var=True):
         assert isinstance(ob_space, gym.spaces.Box)
+        tf.initialize_all_variables()
+        # print("Calling init MlpPolicy: ")
 
         self.pdtype = pdtype = make_pdtype(ac_space)
         sequence_length = None
 
         ob = U.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
 
-        with tf.variable_scope("obfilter"):
+        print("ob_space: ",ob_space, "ac_space: ", ac_space)
+
+        with tf.variable_scope("obfilter", reuse=tf.AUTO_REUSE):
             self.ob_rms = RunningMeanStd(shape=ob_space.shape)
+
+        # print("ob: ", ob, "self.ob_rms.mean: ", self.ob_rms.mean, "self.ob_rms.std: ", self.ob_rms.std)
 
         obz = tf.clip_by_value((ob - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
         last_out = obz
@@ -34,11 +40,14 @@ class MlpPolicy(object):
         for i in range(num_hid_layers):
             last_out = tf.nn.tanh(U.dense(last_out, hid_size, "polfc%i"%(i+1), weight_init=U.normc_initializer(1.0)))
         if gaussian_fixed_var and isinstance(ac_space, gym.spaces.Box):
-            mean = U.dense(last_out, pdtype.param_shape()[0]//2, "polfinal", U.normc_initializer(0.01))
-            logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
+            with tf.variable_scope("polfinal", reuse=tf.AUTO_REUSE):
+                mean = U.dense(last_out, pdtype.param_shape()[0]//2, "polfinal", U.normc_initializer(0.01))
+            with tf.variable_scope("logstd", reuse=tf.AUTO_REUSE):
+                logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
             pdparam = U.concatenate([mean, mean * 0.0 + logstd], axis=1)
         else:
-            pdparam = U.dense(last_out, pdtype.param_shape()[0], "polfinal", U.normc_initializer(0.01))
+            with tf.variable_scope("polfinal", reuse=tf.AUTO_REUSE):
+                pdparam = U.dense(last_out, pdtype.param_shape()[0], "polfinal", U.normc_initializer(0.01))
 
         self.pd = pdtype.pdfromflat(pdparam)
 

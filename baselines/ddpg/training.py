@@ -207,5 +207,5 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 				if eval_env and hasattr(eval_env, 'get_state'):
 					with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
 						pickle.dump(eval_env.get_state(), f)
-                print("Optimization metric", 1 - (sim_r/sim_t))
-                return (1-sim_r/sim_t)
+				print("Optimization metric", 1 - (sim_r/sim_t))
+				return (1-sim_r/sim_t)
