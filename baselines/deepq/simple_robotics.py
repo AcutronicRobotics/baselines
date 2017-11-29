@@ -256,6 +256,7 @@ def learn(env,
         replay_buffer = ReplayBuffer(buffer_size)
         beta_schedule = None
 
+<<<<<<< HEAD
     # Simplified Replay Buffer
     replay_buffer = ReplayBuffer(buffer_size)
     beta_schedule = None
