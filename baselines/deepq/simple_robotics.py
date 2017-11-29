@@ -271,8 +271,6 @@ def learn(env,
 
         saved_mean_reward = None
         obs = env.reset()
-        logger.log("Reset") ####NORA
-        print("Reset") ####NORA
         reset = True
         with tempfile.TemporaryDirectory() as td:
             # Log training stuff using tf primitives
@@ -337,8 +335,6 @@ def learn(env,
                     summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1]/(t + 1))])
                     summary_writer.add_summary(summary, t+ e*max_timesteps)
                     # print("average episode reward: ", episode_rewards[-1]/(t + 1))
-                    print("sim_r", sim_r)
-                    print("sim_t", sim_t)
                     sim_r += rew
                     sim_t += 1
 
