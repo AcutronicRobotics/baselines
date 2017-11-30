@@ -327,7 +327,7 @@ def learn(env,
                     obs = new_obs
                     episode_rewards[-1] += rew
 
-                    print("reward: ", rew)
+                    # print("reward: ", rew)
                     # Log the episode reward
                     #summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1]/(t + 1))])
                     #summary_writer.add_summary(summary, t+ e*max_timesteps)
