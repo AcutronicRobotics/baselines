@@ -115,6 +115,7 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           param_noise=False,
           callback=None,
+          job_id=None,
           ):
     """Train a deepqn model.
 
@@ -191,7 +192,7 @@ def learn(env,
     # sess.__enter__()
 
     #Directory for log and Tensorboard data
-    outdir = '/tmp/rosrl/' + str(env.__class__.__name__) +'/deepq/'
+    outdir = '/tmp/rosrl/' + str(env.__class__.__name__) +'/deepq/' + 'sim_' + job_id
 
     #TODO This should not go here. Instead pass both action_no and actions as arguments to learn function
     #Discrete actions
@@ -274,9 +275,10 @@ def learn(env,
             env.render()
             sim_r = 0
             sim_t = 0
+            done_quant = 0
             model_saved = False
             model_file = os.path.join(td, "model")
-            for e in range(20): # run 10 episodes
+            for e in range(150): # run 10 episodes
                 print("Episode: ", e)
                 # reset the environment
                 obs = env.reset()
@@ -327,8 +329,8 @@ def learn(env,
 
                     print("reward: ", rew)
                     # Log the episode reward
-                    summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1]/(t + 1))])
-                    summary_writer.add_summary(summary, t+ e*max_timesteps)
+                    #summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1]/(t + 1))])
+                    #summary_writer.add_summary(summary, t+ e*max_timesteps)
                     # print("average episode reward: ", episode_rewards[-1]/(t + 1))
                     sim_r += rew
                     sim_t += 1
@@ -336,6 +338,7 @@ def learn(env,
                     if done:
                         # summary = tf.Summary(value=[tf.Summary.Value(tag="Mean episode reward", simple_value = episode_rewards[-1]/(t + 1))])
                         # summary_writer.add_summary(summary, t)
+                        done_quant += 1
                         print("Done!")
                         obs = env.reset()
                         episode_rewards.append(0.0)
@@ -407,7 +410,18 @@ def learn(env,
                 U.load_state(model_file)
 
     opt_r = 1-(sim_r / sim_t )
+    # Log training stuff using tf primitives
+    summary_writer = tf.summary.FileWriter(outdir+'/error/', graph=tf.get_default_graph())
+    summary = tf.Summary(value=[tf.Summary.Value(tag="Simulation error", simple_value = opt_r)])
+    summary_writer.add_summary(summary, job_id)
+    summary_writer.flush()
+    summary_writer_done = tf.summary.FileWriter(outdir+'/done/', graph=tf.get_default_graph())
+
+    summary_done = tf.Summary(value=[tf.Summary.Value(tag="No. dones", simple_value = done_quant)])
+    summary_writer_done.add_summary(summary_done, job_id)
+    summary_writer_done.flush()
     print("OPT_r", opt_r)
+    print("No. of times it converges: ", done_quant)
     # act_tmp = act
     # session.close()
     # tf.reset_default_graph()
