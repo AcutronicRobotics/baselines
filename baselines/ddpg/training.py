@@ -16,8 +16,8 @@ from mpi4py import MPI
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, param_noise, actor, critic,
 	normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
-	popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
-	tau=0.01, eval_env=None, param_noise_adaption_interval=50, session=None):
+	popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, batch_size, memory,
+	tau=0.01, eval_env=None, param_noise_adaption_interval=50, session=None, job_id=None):
 	rank = MPI.COMM_WORLD.Get_rank()
 
 	assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
@@ -30,7 +30,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 		reward_scale=reward_scale)
 	logger.info('Using agent with the following configuration:')
 	logger.info(str(agent.__dict__.items()))
-
+	outdir = '/tmp/rosrl/GazeboModularScara3DOFv2Env/ddpg/'+job_id
 
 
 
@@ -62,7 +62,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 
 	sim_r = 0
 	sim_t = 0
-
+	done_quant = 0
 	epoch = 0
 	start_time = time.time()
 
@@ -77,7 +77,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 	for epoch in range(nb_epochs):
 		logger.info('epoch %i:',epoch)
 		for cycle in range(nb_epoch_cycles):
-			logger.info('Cycle no %i:',cycle)
+			#logger.info('Cycle no %i:',cycle)
 			# Perform rollouts.
 			for t_rollout in range(nb_rollout_steps):
 				# Predict next action.
@@ -106,6 +106,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 
 				if done:
 					logger.info('Episode reward %d:',episode_reward)
+					done_quant += 1
+					logger.info('DONE')
 					# Episode done.
 					epoch_episode_rewards.append(episode_reward)
 					episode_rewards_history.append(episode_reward)
@@ -206,7 +208,14 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 			if eval_env and hasattr(eval_env, 'get_state'):
 				with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
 					pickle.dump(eval_env.get_state(), f)
-		print("Optimization metric", 1 - (sim_r/sim_t))
-		return (1-sim_r/sim_t)
+	optim_metric = 1-(sim_r/sim_t)
+	summary_writer_error = tf.summary.FileWriter(outdir+'/error/', graph=tf.get_default_graph())
+	summary = tf.Summary(value=[tf.Summary.Value(tag="Simulation rewards", simple_value = optim_metric)])
+	summary_writer_error.add_summary(summary, job_id)
+	summary_writer_done = tf.summary.FileWriter(outdir+'/done/', graph=tf.get_default_graph())
+	summary = tf.Summary(value=[tf.Summary.Value(tag="Done", simple_value = done_quant)])
+	summary_writer_done.add_summary(summary, job_id)
+	print("Optimization metric", 1 - (sim_r/sim_t))
+	return (1-sim_r/sim_t)
 	# sess.close()
 	# tf.reset_default_graph()

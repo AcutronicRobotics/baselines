@@ -190,9 +190,11 @@ def learn(env,
     # Create all the functions necessary to train the model
     # sess = tf.Session()
     # sess.__enter__()
-
-    #Directory for log and Tensorboard data
-    outdir = '/tmp/rosrl/' + str(env.__class__.__name__) +'/deepq/' + 'sim_' + job_id
+    if job_id is not None:
+        #Directory for log and Tensorboard data
+        outdir = '/tmp/rosrl/' + str(env.__class__.__name__) +'/deepq/' + 'sim_' + job_id
+    else:
+        outdir = '/tmp/rosrl/' + str(env.__class__.__name__) +'/deepq/'
 
     #TODO This should not go here. Instead pass both action_no and actions as arguments to learn function
     #Discrete actions
@@ -327,7 +329,7 @@ def learn(env,
                     obs = new_obs
                     episode_rewards[-1] += rew
 
-                    # print("reward: ", rew)
+                    print("reward: ", rew)
                     # Log the episode reward
                     #summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1]/(t + 1))])
                     #summary_writer.add_summary(summary, t+ e*max_timesteps)
