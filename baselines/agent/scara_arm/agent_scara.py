@@ -227,7 +227,7 @@ class AgentSCARAROS(object):
                     # print(self.agent['link_names'][-1])
                     trans, rot = forward_kinematics(self.scara_chain,
                                                 self.agent['link_names'],
-                                                last_observations[:3],
+                                                last_observations[:self.scara_chain.getNrOfJoints()],
                                                 base_link=self.agent['link_names'][0],
                                                 end_link=self.agent['link_names'][-1])
                     # #
