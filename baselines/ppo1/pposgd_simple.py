@@ -87,7 +87,8 @@ def learn(env, policy_func, *,
         callback=None, # you can do anything in the callback, since it takes locals(), globals()
         adam_epsilon=1e-5,
         schedule='constant', # annealing for stepsize parameters (epsilon and adam)
-        save_model_with_prefix):
+        save_model_with_prefix,
+        job_id=None):
     # Setup losses and stuff
     # ----------------------------------------
     ob_space = env.observation_space
@@ -144,7 +145,7 @@ def learn(env, policy_func, *,
         assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
 
         if save_model_with_prefix:
-            basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
+            basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
             summary_writer = tf.summary.FileWriter(basePath, graph=tf.get_default_graph())
 
         while True:
@@ -219,10 +220,9 @@ def learn(env, policy_func, *,
             Save the model at every itteration
             """
             if save_model_with_prefix:
-                if np.mean(rewbuffer) > -10.0:
-                    basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
-                    summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-                    summary_writer.add_summary(summary, iters_so_far)
+                if np.mean(rewbuffer) > 0:
+                    basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
+
                     if not os.path.exists(basePath):
                         os.makedirs(basePath)
                     modelF= basePath + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
@@ -239,7 +239,8 @@ def learn(env, policy_func, *,
     # U.get_session().close()
     # # U.reset()
     # # tf.reset_default_graph()
-
+    summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+    summary_writer.add_summary(summary, iters_so_far)
     return np.mean(rewbuffer)
 
 
