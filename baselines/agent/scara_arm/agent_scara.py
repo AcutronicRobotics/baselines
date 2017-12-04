@@ -112,8 +112,8 @@ class AgentSCARAROS(object):
         # Here idially we should find the control range of the robot. Unfortunatelly in ROS/KDL there is nothing like this.
         # I have tested this with the mujoco enviroment and the output is always same low[-1.,-1.], high[1.,1.]
         # bounds = self.model.actuator_ctrlrange.copy()
-        low = -np.pi/4.0 * np.ones(self.scara_chain.getNrOfJoints()) #bounds[:, 0]
-        high = np.pi/4.0 * np.ones(self.scara_chain.getNrOfJoints()) #bounds[:, 1]
+        low = -np.pi/2.0 * np.ones(self.scara_chain.getNrOfJoints()) #bounds[:, 0]
+        high = np.pi/2.0 * np.ones(self.scara_chain.getNrOfJoints()) #bounds[:, 1]
         # print("Action Spaces:")
         # print("low: ", low, "high: ", high)
         self.action_space = spaces.Box(low, high)
@@ -135,7 +135,6 @@ class AgentSCARAROS(object):
                 reset_action = self.agent['reset_conditions']['initial_positions']
                 now_action = self._observation_msg.actual.positions
                 du = np.linalg.norm(reset_action-now_action, float(np.inf))
-                # self._pub.publish(self._get_trajectory_message(self.agent['reset_conditions']['initial_positions'], self.agent))
                 if du < epsilon:
                     self._currently_resetting = False
 
@@ -160,20 +159,26 @@ class AgentSCARAROS(object):
         self._time_lock.acquire(True, -1)
         with self._time_lock:
             self._currently_resetting = True
+
+
+        # if self._currently_resetting:
+        #     epsilon = 1e-3
+        #     reset_action = self.agent['reset_conditions']['initial_positions']
+        #     now_action = self._observation_msg.actual.positions
+        #     du = np.linalg.norm(reset_action-now_action, float(np.inf))
+        #     if du > epsilon:
+        #         self._pub.publish(self._get_trajectory_message(self.agent['reset_conditions']['initial_positions'], self.agent))
+        #         time.sleep(self.agent['slowness'])
+        #         self._currently_resetting = True
+        #         print("reset is false.")
+        #     else:
+        #         self._currently_resetting = False
+        #         print("reset is true.")
+
+            self.ob, ee_points = self._get_obs()
         self._time_lock.release()
 
-        if self._currently_resetting:
-            epsilon = 1e-3
-            reset_action = self.agent['reset_conditions']['initial_positions']
-            now_action = self._observation_msg.actual.positions
-            du = np.linalg.norm(reset_action-now_action, float(np.inf))
-            self._pub.publish(self._get_trajectory_message(self.agent['reset_conditions']['initial_positions'], self.agent))
-            if du < epsilon:
-                self._currently_resetting = False
-                time.sleep(4)
-        self.ob, ee_points = self._get_obs()
-
-        print("resetting: ", self.ob)
+        # print("resetting: ", self.ob)
 
         return self.ob
     def seed(self, seed=None):
@@ -279,7 +284,6 @@ class AgentSCARAROS(object):
               2. Perform action (do_simulation)
               3. Get the Observations
             """
-
             _, ee_points  = self._get_obs()
 
             if ee_points is None:
@@ -292,34 +296,37 @@ class AgentSCARAROS(object):
                 # self.reward_dist = - self.rmse_func(ee_points) - 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
                 # print("reward: ", self.reward_dist)
 
-                self.reward_dist = -self.rmse_func(ee_points) #- 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
-                # print("reward: ",self.reward_dist)
-
-                if abs(np.linalg.norm(ee_points)) < 0.01:
-                    self.reward_dist += 10
-                    done = True
-                    print("Reward function: " , self.reward_dist)
+                self.reward_dist = - self.rmse_func(ee_points)
+                # print("reward_dist :", self.reward_dist)
+                if(self.reward_dist<0.005):
+                    self.reward = 1 - self.rmse_func(ee_points) # Make the reward increase as the distance decreases
+                    print("Reward is: ", self.reward)
+                    print("Eucledian distance is: ", np.linalg.norm(ee_points))
                 else:
-                    done = bool(abs(np.linalg.norm(ee_points)) < 0.01)
-                    print("done: ", done)
+                    self.reward = self.reward_dist
 
-                    self._time_lock.acquire(True)
-                    self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+                print("reward: ", self.reward)
 
-                    while self.ob is None or ee_points is None:
-                        self.ob, ee_points  = self._get_obs()
-                        rclpy.spin_once(node)
-                        time.sleep(self.agent['slowness'])
+                # Calculate if the env has been solved
+                done = bool(abs(self.reward_dist) < 0.005)
 
-                    self._time_lock.release()
+                self._time_lock.acquire(True)
+                self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+
+                while self.ob is None or ee_points is None:
+                    self.ob, ee_points  = self._get_obs()
+                    rclpy.spin_once(node)
+                    time.sleep(self.agent['slowness'])
+
+                self._time_lock.release()
 
                     # self._time_lock.release()
-                    rclpy.spin_once(node)
+                rclpy.spin_once(node)
 
-                    time_step += 1
+                time_step += 1
 
                 # print("time_step: ", time_step)
-                return self.ob, self.reward_dist, done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
+                return self.ob, self.reward, done, {}
 
     def step(self, action):
         """
@@ -344,16 +351,24 @@ class AgentSCARAROS(object):
                 rclpy.spin_once(node)
                 time_step += 1
             else:
-                self.reward_dist = -np.linalg.norm(ee_points) #self.rmse_func(ee_points) #- 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
-                # print("reward: ",self.reward_dist)
+                # self.reward_dist = - abs(self.rmse_func(ee_points)) #np.linalg.norm(ee_points) #self.rmse_func(ee_points) #- 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
+                # # print("reward: ",self.reward_dist)
 
-                if abs(np.linalg.norm(ee_points)) < 0.01:
-                    print("Reward function: " , self.reward_dist)
-                    self.reward_dist += 10
-                    done = True
+                self.reward_dist = -self.rmse_func(ee_points)
+                # print("reward_dist :", self.reward_dist)
+                if(self.rmse_func(ee_points)<0.005):
+                    self.reward = 1 - self.rmse_func(ee_points) # Make the reward increase as the distance decreases
+                    print("Reward is: ", self.reward)
+                    print("Eucledian distance is: ", np.linalg.norm(ee_points))
                 else:
-                    done = bool(abs(np.linalg.norm(ee_points)) < 0.01)
-                # print("reward: ", self.reward_dist)
+                    self.reward = self.reward_dist
+                    print("Eucledian distance is: ", np.linalg.norm(ee_points))
+
+                # print("reward: ", self.reward)
+                # print("rmse_func: ", self.rmse_func(ee_points))
+
+                # Calculate if the env has been solved
+                done = bool(abs(self.reward_dist) < 0.005)
 
                 self._time_lock.acquire(True)
                 self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
@@ -362,7 +377,7 @@ class AgentSCARAROS(object):
                 rclpy.spin_once(node)
                 self.ob, ee_points  = self._get_obs()
 
-        return self.ob, self.reward_dist, done, dict(reward_dist=self.reward_dist, reward_ctrl=self.reward_ctrl)
+        return self.ob, self.reward, done, {}
 
     def rmse_func(self, ee_points):
       """
