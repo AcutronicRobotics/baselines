@@ -130,13 +130,13 @@ class AgentSCARAROS(object):
         with self._time_lock:
             self._observations_stale = False
             self._observation_msg = message
-            if self._currently_resetting:
-                epsilon = 1e-3
-                reset_action = self.agent['reset_conditions']['initial_positions']
-                now_action = self._observation_msg.actual.positions
-                du = np.linalg.norm(reset_action-now_action, float(np.inf))
-                if du < epsilon:
-                    self._currently_resetting = False
+            # if self._currently_resetting:
+            #     epsilon = 1e-3
+            #     reset_action = self.agent['reset_conditions']['initial_positions']
+            #     now_action = self._observation_msg.actual.positions
+            #     du = np.linalg.norm(reset_action-now_action, float(np.inf))
+            #     if du < epsilon:
+            #         self._currently_resetting = False
 
         self._time_lock.release()
 
