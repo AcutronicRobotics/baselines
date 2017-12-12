@@ -145,7 +145,10 @@ def learn(env, policy_func, *,
         assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
 
         if save_model_with_prefix:
-            basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
+            if job_id is not None:
+                basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
+            else:
+                basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
             summary_writer = tf.summary.FileWriter(basePath, graph=tf.get_default_graph())
 
         while True:
@@ -221,7 +224,11 @@ def learn(env, policy_func, *,
             """
             if save_model_with_prefix:
                 if np.mean(rewbuffer) > 0:
-                    basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
+                    if job_id is not None:
+                        basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
+                    else:
+                        basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
+
 
                     if not os.path.exists(basePath):
                         os.makedirs(basePath)

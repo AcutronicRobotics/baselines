@@ -84,7 +84,6 @@ class AgentSCARAROS(object):
 
         print("I am in reading the file path: ", fullpath)
 
-
         # Initialize a tree structure from the robot urdf.
         # Note that the xacro of the urdf is updated by hand.
         # Then the urdf must be compiled.
