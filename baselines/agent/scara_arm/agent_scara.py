@@ -125,10 +125,10 @@ class AgentSCARAROS(object):
         # self.seed()
     def _observation_callback(self, message):
         # message: observation from the robot to store each listen."""
-        self._time_lock.acquire(True, -1)
-        with self._time_lock:
-            self._observations_stale = False
-            self._observation_msg = message
+        # self._time_lock.acquire(True, -1)
+        # with self._time_lock:
+        self._observations_stale = False
+        self._observation_msg = message
             # if self._currently_resetting:
             #     epsilon = 1e-3
             #     reset_action = self.agent['reset_conditions']['initial_positions']
@@ -137,7 +137,7 @@ class AgentSCARAROS(object):
             #     if du < epsilon:
             #         self._currently_resetting = False
 
-        self._time_lock.release()
+        # self._time_lock.release()
 
 
     def reset(self):
@@ -155,9 +155,9 @@ class AgentSCARAROS(object):
 
         # Wait until the arm is within epsilon of reset configuration.
         # action_msg = JointTrajectory()
-        self._time_lock.acquire(True, -1)
-        with self._time_lock:
-            self._currently_resetting = True
+        # self._time_lock.acquire(True, -1)
+        # with self._time_lock:
+        #     self._currently_resetting = True
 
 
         # if self._currently_resetting:
@@ -174,8 +174,8 @@ class AgentSCARAROS(object):
         #         self._currently_resetting = False
         #         print("reset is true.")
 
-            self.ob, ee_points = self._get_obs()
-        self._time_lock.release()
+        self.ob, ee_points = self._get_obs()
+        # self._time_lock.release()
 
         # print("resetting: ", self.ob)
 
@@ -189,7 +189,7 @@ class AgentSCARAROS(object):
         if self._observations_stale is False:
             # # Acquire the lock to prevent the subscriber thread from
             # # updating times or observation messages.
-            self._time_lock.acquire(True)
+            # self._time_lock.acquire(True)
 
             obs_message = self._observation_msg
             # if obs_message is None:
@@ -290,7 +290,7 @@ class AgentSCARAROS(object):
                 print("ee_points: ", ee_points)
                 done = False
                 rclpy.spin_once(node)
-                time.sleep(self.agent['slowness'])
+                # time.sleep(self.agent['slowness'])
             else:
                 # self.reward_dist = - self.rmse_func(ee_points) - 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
                 # print("reward: ", self.reward_dist)
@@ -309,15 +309,15 @@ class AgentSCARAROS(object):
                 # Calculate if the env has been solved
                 done = bool(abs(self.reward_dist) < 0.005)
 
-                self._time_lock.acquire(True)
+                # self._time_lock.acquire(True)
                 self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
 
                 while self.ob is None or ee_points is None:
                     self.ob, ee_points  = self._get_obs()
                     rclpy.spin_once(node)
-                    time.sleep(self.agent['slowness'])
+                    # time.sleep(self.agent['slowness'])
 
-                self._time_lock.release()
+                # self._time_lock.release()
 
                     # self._time_lock.release()
                 rclpy.spin_once(node)
@@ -333,6 +333,8 @@ class AgentSCARAROS(object):
         """
         self.obs = None
         observations = None
+
+        print("Action: ", action)
         """
         How they do in OpenAI:
              1. Calculate the reward
@@ -361,7 +363,7 @@ class AgentSCARAROS(object):
                     print("Eucledian distance is: ", np.linalg.norm(ee_points))
                 else:
                     self.reward = self.reward_dist
-                    print("Eucledian distance is: ", np.linalg.norm(ee_points))
+                    # print("Eucledian distance is: ", np.linalg.norm(ee_points))
 
                 # print("reward: ", self.reward)
                 # print("rmse_func: ", self.rmse_func(ee_points))
@@ -369,9 +371,9 @@ class AgentSCARAROS(object):
                 # Calculate if the env has been solved
                 done = bool(abs(self.reward_dist) < 0.005)
 
-                self._time_lock.acquire(True)
+                # self._time_lock.acquire(True)
                 self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
-                self._time_lock.release()
+                # self._time_lock.release()
 
                 rclpy.spin_once(node)
                 self.ob, ee_points  = self._get_obs()
