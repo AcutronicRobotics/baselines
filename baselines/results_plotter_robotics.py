@@ -11,7 +11,7 @@ X_TIMESTEPS = 'timesteps'
 X_EPISODES = 'episodes'
 X_WALLTIME = 'walltime_hrs'
 POSSIBLE_X_AXES = [X_TIMESTEPS, X_EPISODES, X_WALLTIME]
-EPISODES_WINDOW = 1
+EPISODES_WINDOW = 10
 COLORS = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'purple', 'pink',
         'brown', 'orange', 'teal', 'coral', 'lightblue', 'lime', 'lavender', 'turquoise',
         'darkgreen', 'tan', 'salmon', 'gold', 'lightpurple', 'darkred', 'darkblue']
