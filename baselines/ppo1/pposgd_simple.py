@@ -212,7 +212,7 @@ def learn(env, policy_func, *,
             rewbuffer.extend(rews)
             logger.record_tabular("EpLenMean", np.mean(lenbuffer))
             logger.record_tabular("EpRewMean", np.mean(rewbuffer))
-            logger.record_tabular("EpRewSEM", np.mean(rewbuffer) /np.sqrt(len(lenbuffer)))
+            logger.record_tabular("EpRewSEM", np.std(rewbuffer))
             logger.record_tabular("EpThisIter", len(lens))
 
             print("Len(lenbuffer)", len(lenbuffer) )
