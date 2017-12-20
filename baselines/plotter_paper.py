@@ -22,11 +22,13 @@ color_defaults = [
     '#bcbd22',  # curry yellow-green
     '#17becf'  # blue-teal
 ]
+lines = []
+names = []
 
-label = 'Scara 3DoF'
+label = 'ACKTR'
 
 
-with open('/tmp/rosrl/GazeboModularScara3DOFv3Env_test_acktr/acktr/monitor/progress.csv') as f:
+with open('/tmp/rosrl/GazeboModularScara3DOFv3Env/acktr/monitor/progress.csv') as f:
         reader = csv.DictReader(f) # read rows into a dictionary format
         for row in reader: # read a row as {column1: value1, column2: value2,...}
             for (k,v) in row.items(): # go over each column name and value
@@ -39,7 +41,7 @@ with open('/tmp/rosrl/GazeboModularScara3DOFv3Env_test_acktr/acktr/monitor/progr
 # print(np.asarray(columns['EpRewSEM']))
 
 
-color = color_defaults[1]
+color = color_defaults[0]
 y_mean = np.asarray(list(map(float,columns['EpRewMean'])))
 y_std = np.asarray(list(map(float,columns['EpRewSEM'])))
 
@@ -56,8 +58,12 @@ plt.fill_between(
 )
 
 line = plt.plot(x, list(y_mean), label=label, color=color, rasterized=True)
-plot_name = 'Scara 3DoF'
 
+lines.append(line[0])
+names.append(label)
+
+plot_name = 'Scara 3DoF'
+plt.legend(lines,names, loc=4)
 plt.xlim([0,1000000])
 plt.xlabel("Number of Timesteps")
 plt.ylabel("Episode Reward")
