@@ -5,7 +5,7 @@ import csv
 from collections import defaultdict
 import numpy as np
 
-columns = defaultdict(list)
+
 
 #matplotlib inline
 matplotlib.rcParams.update({'font.size': 16})
@@ -22,51 +22,83 @@ color_defaults = [
     '#bcbd22',  # curry yellow-green
     '#17becf'  # blue-teal
 ]
-lines = []
-names = []
 
-label = 'ACKTR'
+# label = 'PPO1'
 
+def plot_results(plot_name, all_values, labels):
+    lines = []
+    names = []
+    columns = defaultdict(list)
 
-with open('/tmp/rosrl/GazeboModularScara3DOFv3Env/acktr/monitor/progress.csv') as f:
-        reader = csv.DictReader(f) # read rows into a dictionary format
-        for row in reader: # read a row as {column1: value1, column2: value2,...}
-            for (k,v) in row.items(): # go over each column name and value
-                columns[k].append(v) # append the value into the appropriate list
-                                     # based on column name k
+    for i in range(len(all_values)):
+        print(all_values[i])
+        with open(all_values[i]) as f:
+                reader = csv.DictReader(f) # read rows into a dictionary format
+                for row in reader: # read a row as {column1: value1, column2: value2,...}
+                    for (k,v) in row.items(): # go over each column name and value
+                        if v is '':
+                            v = 'nan'
+                        columns[k].append(v) # append the value into the appropriate list
+                                             # based on column name k
 
-# print(columns['loss_vf_loss'])
-# print(columns['loss_pol_surr'])
-# print(np.asarray(columns['EpRewMean']))
-# print(np.asarray(columns['EpRewSEM']))
-
-
-color = color_defaults[0]
-y_mean = np.asarray(list(map(float,columns['EpRewMean'])))
-y_std = np.asarray(list(map(float,columns['EpRewSEM'])))
-
-# x = np.asarray(list(map(float, columns['EVAfter'])))
-x = np.linspace(0, 1e6, y_std.size, endpoint=True)
+        # print(columns['loss_vf_loss'])
+        # print(columns['loss_pol_surr'])
+        # print(np.asarray(columns['EpRewMean']))
+        # print(np.asarray(columns['EpRewSEM']))
 
 
-# color = colors[i]
-y_upper = y_mean + y_std
-y_lower = y_mean - y_std
-# f2 = interp1d(y_upper, y_upper, kind='cubic')
-plt.fill_between(
-    x, list(y_lower), list(y_upper), interpolate=True, facecolor=color, linewidth=0.0, alpha=0.3
-)
+        color = color_defaults[i]
+        y_mean = np.asarray(list(map(float,columns['EpRewMean'])))
+        y_std = np.asarray(list(map(float,columns['EpRewSEM'])))
 
-line = plt.plot(x, list(y_mean), label=label, color=color, rasterized=True)
+        # x = np.asarray(list(map(float, columns['EVAfter'])))
+        x = np.linspace(0, 1e6, y_std.size, endpoint=True)
 
-lines.append(line[0])
-names.append(label)
+        # we need to scale down PPO1 since the reward accumulation is huge.
+        if i is 1:
+            y_mean = 0.1 * y_mean
+            y_std = 0.1 * y_std
 
-plot_name = 'Scara 3DoF'
-plt.legend(lines,names, loc=4)
-plt.xlim([0,1000000])
-plt.xlabel("Number of Timesteps")
-plt.ylabel("Episode Reward")
-plt.title(plot_name)
-plt.xticks([200000, 400000, 600000, 800000, 1000000], ["200K", "400K", "600K", "800K", "1M"])
+
+        # color = colors[i]
+        y_upper = y_mean + y_std
+        y_lower = y_mean - y_std
+
+        # f2 = interp1d(y_upper, y_upper, kind='cubic')
+        plt.fill_between(
+            x, list(y_lower), list(y_upper), interpolate=True, facecolor=color, linewidth=0.0, alpha=0.3
+        )
+
+        line = plt.plot(x, list(y_mean), color=color, rasterized=True)
+
+        lines.append(line[0])
+        names.append(labels[i])
+
+    # plot_name = 'Scara 3DoF'
+    plt.legend(lines,names, loc=4)
+    plt.xlim([0,1000000])
+    # plt.ylim([-40,1])
+    plt.xlabel("Number of Timesteps")
+    plt.ylabel("Episode Reward")
+    plt.title(plot_name)
+    plt.xticks([200000, 400000, 600000, 800000, 1000000], ["200K", "400K", "600K", "800K", "1M"])
+
+# env_ids = ["invertedpendulum", "inverteddoublependulum", "reacher", "hopper",\
+#             "halfcheetah", "walker2d", "swimmer", "ant"]
+plot_names = ["Scara 3DoF", "Scara 3DoF"]
+
+# plt.figure(figsize=(20,10))
+columns = 4
+i = 0
+for plot_name in plot_names:
+    datas = []
+    datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_with_reset/acktr/monitor/progress.csv") #, "-acktr-seed", env_id
+    datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_with_reset/ppo1/monitor/progress.csv")
+    # datas.append(load("data/mujoco/trpo/", "-trpo-seed", env_id))
+    # plt.subplot(len(env_ids) / columns + 1, columns, i + 1)
+    # i += 1
+    labels = ["ACKTR","PPO1"] #"ACKTR",
+    plot_results(plot_name, datas, labels)
+
+# plt.tight_layout()
 plt.show()
