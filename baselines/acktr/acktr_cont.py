@@ -157,16 +157,18 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
         Save the model at every itteration
         """
         if save_model_with_prefix:
-            basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/acktr/'
-            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean([path["reward"].sum() for path in paths]))])
-            summary_writer.add_summary(summary, i)
-            if not os.path.exists(basePath):
-                os.makedirs(basePath)
-            modelF= basePath + save_model_with_prefix+"_afterIter_"+str(i)+".model"
-            U.save_state(modelF)
-            logger.log("Saved model to file :{}".format(modelF))
+            if np.mean([path["reward"].sum() for path in paths]) > -2.0:
+                basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/acktr/'
+                summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean([path["reward"].sum() for path in paths]))])
+                summary_writer.add_summary(summary, i)
+                if not os.path.exists(basePath):
+                    os.makedirs(basePath)
+                modelF= basePath + save_model_with_prefix+"_afterIter_"+str(i)+".model"
+                U.save_state(modelF)
+                logger.log("Saved model to file :{}".format(modelF))
 
         i += 1
 
     coord.request_stop()
     coord.join(enqueue_threads)
+    return np.mean([path["reward"].sum() for path in paths]) #Needed for hyperparameter optimization
