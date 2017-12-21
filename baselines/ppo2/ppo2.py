@@ -172,10 +172,13 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
                     max_grad_norm=max_grad_norm)
     if save_interval and logger.get_dir():
         import cloudpickle
+        summary_writer = tf.summary.FileWriter(logger.get_dir(), graph=tf.get_default_graph())
         with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
             fh.write(cloudpickle.dumps(make_model))
     model = make_model()
     runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, lam=lam)
+
+
 
     epinfobuf = deque(maxlen=100)
     tfirststart = time.time()
@@ -219,7 +222,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
         lossvals = np.mean(mblossvals, axis=0)
         tnow = time.time()
         fps = int(nbatch / (tnow - tstart))
-        if update % log_interval == 0: #or update == 1:
+        if update % log_interval == 0 or update == 1:
             ev = explained_variance(values, returns)
             logger.logkv("serial_timesteps", update*nsteps)
             logger.logkv("nupdates", update)
@@ -227,6 +230,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             logger.logkv("fps", fps)
             logger.logkv("explained_variance", float(ev))
             logger.logkv('EpRewMean', safemean([epinfo['r'] for epinfo in epinfobuf]))
+            logger.logkv('EpRewSEM', safestd([epinfo['r'] for epinfo in epinfobuf]))
             logger.logkv('EpLenMean', safemean([epinfo['l'] for epinfo in epinfobuf]))
             logger.logkv('time_elapsed', tnow - tfirststart)
             for (lossval, lossname) in zip(lossvals, model.loss_names):
@@ -238,8 +242,13 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             savepath = osp.join(checkdir, '%.5i'%update)
             print('Saving to', savepath)
             model.save(savepath)
+    summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
+    summary_writer.add_summary(summary, update)
     return safemean([epinfo['r'] for epinfo in epinfobuf])
     env.close()
 
 def safemean(xs):
     return np.nan if len(xs) == 0 else np.mean(xs)
+
+def safestd(xs):
+    return np.nan if len(xs) == 0 else np.std(xs)

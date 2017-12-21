@@ -210,9 +210,9 @@ def learn(env, policy_func, *,
             lens, rews = map(flatten_lists, zip(*listoflrpairs))
             lenbuffer.extend(lens)
             rewbuffer.extend(rews)
-            logger.record_tabular("EpLenMean", np.mean(lenbuffer))
-            logger.record_tabular("EpRewMean", np.mean(rewbuffer))
-            logger.record_tabular("EpRewSEM", np.std(rewbuffer))
+            logger.record_tabular("EpLenMean", safemean(lenbuffer))
+            logger.record_tabular("EpRewMean", safemean(rewbuffer))
+            logger.record_tabular("EpRewSEM", safestd(rewbuffer))
             logger.record_tabular("EpThisIter", len(lens))
 
             print("Len(lenbuffer)", len(lenbuffer) )
@@ -251,7 +251,11 @@ def learn(env, policy_func, *,
     summary_writer.add_summary(summary, iters_so_far)
     return np.mean(rewbuffer)
 
+def safemean(xs):
+    return np.nan if len(xs) == 0 else np.mean(xs)
 
+def safestd(xs):
+    return np.nan if len(xs) == 0 else np.std(xs)
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]
