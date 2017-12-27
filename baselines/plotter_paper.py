@@ -80,7 +80,7 @@ def plot_results(plot_name, all_values, labels, smooth=True):
 
         # f2 = interp1d(y_upper, y_upper, kind='cubic')
         plt.fill_between(
-            x, list(y_lower), list(y_upper), interpolate=False, facecolor=color, linewidth=0.0, alpha=0.3
+            x, list(y_lower), list(y_upper), interpolate=True, facecolor=color, linewidth=0.0, alpha=0.3
         )
 
         line = plt.plot(x, list(y_mean), color=color, rasterized=False, antialiased=True)
@@ -106,9 +106,10 @@ plot_name = "Scara 3DoF"
 # i = 0
 # for plot_name in plot_names:
 datas = []
-datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_12222017/ppo1/monitor/progress.csv")
-datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_12222017/ppo2/progress.csv") #, "-acktr-seed", env_id
-datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_12222017/acktr/monitor/progress.csv")
+# datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_12222017/ppo1/monitor/progress.csv")
+datas.append("/tmp/rosrl/GazeboModularScara3DOFv3Env/ppo1/monitor/progress.csv")
+# datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_12222017/ppo2/progress.csv") #, "-acktr-seed", env_id
+datas.append("/tmp/rosrl/GazeboModularScara3DOFv3Env/acktr/monitor/progress.csv")
 # datas.append(load("data/mujoco/trpo/", "-trpo-seed", env_id))
 # plt.subplot(len(env_ids) / columns + 1, columns, i + 1)
 # i += 1
