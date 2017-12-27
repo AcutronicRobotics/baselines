@@ -5,6 +5,8 @@ import csv
 from collections import defaultdict
 import numpy as np
 
+from scipy.signal import savgol_filter
+
 
 
 #matplotlib inline
@@ -25,12 +27,16 @@ color_defaults = [
 
 # label = 'PPO1'
 
-def plot_results(plot_name, all_values, labels):
+def plot_results(plot_name, all_values, labels, smooth=True):
     lines = []
     names = []
-    columns = defaultdict(list)
 
     for i in range(len(all_values)):
+        y_mean = []
+        y_std = []
+        y_upper = []
+        y_lower = []
+        columns = defaultdict(list)
         print(all_values[i])
         with open(all_values[i]) as f:
                 reader = csv.DictReader(f) # read rows into a dictionary format
@@ -50,17 +56,25 @@ def plot_results(plot_name, all_values, labels):
         color = color_defaults[i]
         y_mean = np.asarray(list(map(float,columns['EpRewMean'])))
         y_std = np.asarray(list(map(float,columns['EpRewSEM'])))
+        # print("before clean size mean: ", y_mean.size)
+        # print("before clean size std: ", y_std.size)
+        # # y_mean = [x for x in y_mean if y_mean is not NaN]
+        # y_mean = np.asarray([row for row in y_mean if not np.isnan(row).any()])
+        # y_std = np.asarray([row for row in y_std if not np.isnan(row).any()])
+        #
+        # print("after clean size mean: ", y_mean.size)
+        # print("after clean size std: ", y_std.size)
 
         # x = np.asarray(list(map(float, columns['EVAfter'])))
         x = np.linspace(0, 1e6, y_std.size, endpoint=True)
 
-        # we need to scale down PPO1 since the reward accumulation is huge.
-        if i is 1:
-            y_mean = 0.1 * y_mean
-            y_std = 0.1 * y_std
+        if smooth is True:
+            y_mean = savgol_filter(y_mean, 45, 3)
+            y_std = savgol_filter(y_std, 45, 3)
 
 
-        # color = colors[i]
+        # print("i: ", i, "y_mean_max: ", max(y_mean), "y_mean_min: ", min(y_mean))
+
         y_upper = y_mean + y_std
         y_lower = y_mean - y_std
 
@@ -69,15 +83,14 @@ def plot_results(plot_name, all_values, labels):
             x, list(y_lower), list(y_upper), interpolate=True, facecolor=color, linewidth=0.0, alpha=0.3
         )
 
-        line = plt.plot(x, list(y_mean), color=color, rasterized=True)
+        line = plt.plot(x, list(y_mean), color=color, rasterized=True, antialiased=True)
 
         lines.append(line[0])
         names.append(labels[i])
 
-    # plot_name = 'Scara 3DoF'
-    plt.legend(lines,names, loc=4)
+    plt.legend(lines, names, loc=4)
     plt.xlim([0,1000000])
-    # plt.ylim([-40,1])
+    # plt.ylim([-400,20])
     plt.xlabel("Number of Timesteps")
     plt.ylabel("Episode Reward")
     plt.title(plot_name)
@@ -86,19 +99,21 @@ def plot_results(plot_name, all_values, labels):
 # env_ids = ["invertedpendulum", "inverteddoublependulum", "reacher", "hopper",\
 #             "halfcheetah", "walker2d", "swimmer", "ant"]
 plot_names = ["Scara 3DoF", "Scara 3DoF"]
+plot_name = "Scara 3DoF"
 
 # plt.figure(figsize=(20,10))
-columns = 4
-i = 0
-for plot_name in plot_names:
-    datas = []
-    datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_with_reset/acktr/monitor/progress.csv") #, "-acktr-seed", env_id
-    datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_with_reset/ppo1/monitor/progress.csv")
-    # datas.append(load("data/mujoco/trpo/", "-trpo-seed", env_id))
-    # plt.subplot(len(env_ids) / columns + 1, columns, i + 1)
-    # i += 1
-    labels = ["ACKTR","PPO1"] #"ACKTR",
-    plot_results(plot_name, datas, labels)
+# columns = 4
+# i = 0
+# for plot_name in plot_names:
+datas = []
+datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_12222017/ppo1/monitor/progress.csv")
+datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_12222017/ppo2/progress.csv") #, "-acktr-seed", env_id
+datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_12222017/acktr/monitor/progress.csv")
+# datas.append(load("data/mujoco/trpo/", "-trpo-seed", env_id))
+# plt.subplot(len(env_ids) / columns + 1, columns, i + 1)
+# i += 1
+labels = ["PPO1","PPO2", "ACKTR"] #"ACKTR",
+plot_results(plot_name, datas, labels, smooth=True)
 
-# plt.tight_layout()
+plt.tight_layout()
 plt.show()
