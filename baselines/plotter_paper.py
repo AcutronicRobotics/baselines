@@ -69,8 +69,8 @@ def plot_results(plot_name, all_values, labels, smooth=True):
         x = np.linspace(0, 1e6, y_std.size, endpoint=True)
 
         if smooth is True:
-            y_mean = savgol_filter(y_mean, 45, 3)
-            y_std = savgol_filter(y_std, 45, 3)
+            y_mean = savgol_filter(y_mean, 11, 3)
+            y_std = savgol_filter(y_std, 11, 3)
 
 
         # print("i: ", i, "y_mean_max: ", max(y_mean), "y_mean_min: ", min(y_mean))
@@ -80,10 +80,10 @@ def plot_results(plot_name, all_values, labels, smooth=True):
 
         # f2 = interp1d(y_upper, y_upper, kind='cubic')
         plt.fill_between(
-            x, list(y_lower), list(y_upper), interpolate=True, facecolor=color, linewidth=0.0, alpha=0.3
+            x, list(y_lower), list(y_upper), interpolate=False, facecolor=color, linewidth=0.0, alpha=0.3
         )
 
-        line = plt.plot(x, list(y_mean), color=color, rasterized=True, antialiased=True)
+        line = plt.plot(x, list(y_mean), color=color, rasterized=False, antialiased=True)
 
         lines.append(line[0])
         names.append(labels[i])
@@ -113,7 +113,7 @@ datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOF
 # plt.subplot(len(env_ids) / columns + 1, columns, i + 1)
 # i += 1
 labels = ["PPO1","PPO2", "ACKTR"] #"ACKTR",
-plot_results(plot_name, datas, labels, smooth=True)
+plot_results(plot_name, datas, labels, smooth=False)
 
 plt.tight_layout()
 plt.show()
