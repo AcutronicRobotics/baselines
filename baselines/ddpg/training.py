@@ -73,8 +73,10 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 	epoch_start_time = time.time()
 	epoch_actions = []
 	epoch_qs = []
+
 	epoch_episodes = 0
 	for epoch in range(nb_epochs):
+		rewards = []
 		logger.info('epoch %i:',epoch)
 		for cycle in range(nb_epoch_cycles):
 			#logger.info('Cycle no %i:',cycle)
@@ -82,6 +84,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 			for t_rollout in range(nb_rollout_steps):
 				# Predict next action.
 				action, q = agent.pi(obs, apply_noise=True, compute_Q=True)
+				print("action", action)
 				assert action.shape == env.action_space.shape
 
 				# Execute next action.
@@ -93,6 +96,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 				if rank == 0 and render:
 					env.render()
 				episode_reward += r
+				rewards.append(r)
 				episode_step += 1
 
 				sim_r += r
@@ -161,6 +165,13 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 		combined_stats = {}
 		for key in sorted(stats.keys()):
 			combined_stats[key] = mpi_mean(stats[key])
+		logger.record_tabular("EpRewMean", np.mean(rewards))
+		logger.record_tabular("EpRewStd", np.std(rewards))
+
+		if len(epoch_episode_rewards) > 0:
+			logger.record_tabular("EpochEpRew", mpi_mean(epoch_episode_rewards))
+		if len(episode_rewards_history) > 0:
+			logger.record_tabular("EpRewHistMean",  mpi_mean(np.mean(episode_rewards_history)))
 
 		# Rollout statistics.
 		combined_stats['rollout/return'] = mpi_mean(epoch_episode_rewards)
@@ -192,7 +203,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 
 
 
-		logger.info('sim_r/sim_t %d:',sim_r/sim_t)
+		#logger.info('sim_r/sim_t %d:',sim_r/sim_t)
 		#logger.info('rollout/return %d:',np.mean(epoch_episode_rewards))
 		#logger.info('eval/return %d:',np.mean(eval_episode_rewards))
 

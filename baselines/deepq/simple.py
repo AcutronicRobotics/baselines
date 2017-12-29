@@ -96,7 +96,8 @@ def learn(env,
           prioritized_replay_beta_iters=None,
           prioritized_replay_eps=1e-6,
           param_noise=False,
-          callback=None):
+          callback=None,
+          outdir = '/tmp/experiments/discrete/DQN/'):
     """Train a deepq model.
 
     Parameters
@@ -155,7 +156,8 @@ def learn(env,
     callback: (locals, globals) -> None
         function called at every steps with state of the algorithm.
         If callback returns true training stops.
-
+    outdir: string
+        Just an output directory for tensorboard logs
     Returns
     -------
     act: ActWrapper
@@ -216,6 +218,8 @@ def learn(env,
     obs = env.reset()
     reset = True
     with tempfile.TemporaryDirectory() as td:
+        # Add a filewriter to get tensorboard details
+        summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
         model_saved = False
         model_file = os.path.join(td, "model")
         for t in range(max_timesteps):
@@ -247,6 +251,11 @@ def learn(env,
 
             episode_rewards[-1] += rew
             if done:
+                # Log the episode reward
+                summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1])])
+                summary_writer.add_summary(summary, t)
+                summary_writer.flush()
+
                 obs = env.reset()
                 episode_rewards.append(0.0)
                 reset = True

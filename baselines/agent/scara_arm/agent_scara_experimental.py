@@ -192,6 +192,7 @@ class AgentSCARAROS(object):
             # self._time_lock.acquire(True)
 
             obs_message = self._observation_msg
+            # time.sleep(self.agent['slowness'])
             # if obs_message is None:
             #     obs_message = self._observation_msg
             #     # time.sleep(self.agent['slowness'])
@@ -290,7 +291,7 @@ class AgentSCARAROS(object):
                 print("ee_points: ", ee_points)
                 done = False
                 rclpy.spin_once(node)
-                # time.sleep(self.agent['slowness'])
+                time.sleep(self.agent['slowness'])
             else:
                 # self.reward_dist = - self.rmse_func(ee_points) - 0.5 * abs(np.sum(self.log_dist_func(ee_points)))
                 # print("reward: ", self.reward_dist)
@@ -315,7 +316,7 @@ class AgentSCARAROS(object):
                 while self.ob is None or ee_points is None:
                     self.ob, ee_points  = self._get_obs()
                     rclpy.spin_once(node)
-                    # time.sleep(self.agent['slowness'])
+                    time.sleep(self.agent['slowness'])
 
                 # self._time_lock.release()
 
@@ -334,7 +335,7 @@ class AgentSCARAROS(object):
         self.obs = None
         observations = None
 
-        print("Action: ", action)
+        # print("Action: ", action)
         """
         How they do in OpenAI:
              1. Calculate the reward
@@ -372,11 +373,28 @@ class AgentSCARAROS(object):
                 done = bool(abs(self.reward_dist) < 0.005)
 
                 # self._time_lock.acquire(True)
-                self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+                # self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+
+                epsilon = 1e-3
+                current_action = action[:self.scara_chain.getNrOfJoints()]#self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent).points.positions
+                # print("current_action: ",action[:self.scara_chain.getNrOfJoints()])
+                now_position = self._observation_msg.actual.positions
+                # print("now position: ", now_position)
+                du = np.linalg.norm(current_action-now_position, float(np.inf))
+                if du > epsilon:
+                    self._pub.publish(self._get_trajectory_message(action[:self.scara_chain.getNrOfJoints()], self.agent))#rclpy.ok():
+                    # time.sleep(self.agent['slowness'])
+                    # self._currently_resetting = True
+                    print("positions do not match.")
+                else:
+                    # self._currently_resetting = False
+                    print("positions match.")
+                    self.ob, ee_points  = self._get_obs()
+                # me.sleep(self.agent['slowness'])
                 # self._time_lock.release()
 
                 rclpy.spin_once(node)
-                self.ob, ee_points  = self._get_obs()
+                # self.ob, ee_points  = self._get_obs()
 
         return self.ob, self.reward, done, {}
 

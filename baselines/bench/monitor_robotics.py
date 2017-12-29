@@ -1,4 +1,4 @@
-__all__ = ['Monitor', 'get_monitor_files', 'load_results']
+__all__ = ['MonitorRobotics', 'get_monitor_files', 'load_results']
 
 import gym
 from gym.core import Wrapper
@@ -8,7 +8,7 @@ import csv
 import os.path as osp
 import json
 
-class Monitor(Wrapper):
+class MonitorRobotics(Wrapper):
     EXT = "monitor.csv"
     f = None
 
@@ -19,11 +19,11 @@ class Monitor(Wrapper):
             self.f = None
             self.logger = None
         else:
-            if not filename.endswith(Monitor.EXT):
+            if not filename.endswith(MonitorRobotics.EXT):
                 if osp.isdir(filename):
-                    filename = osp.join(filename, Monitor.EXT)
+                    filename = osp.join(filename, MonitorRobotics.EXT)
                 else:
-                    filename = filename + "." + Monitor.EXT
+                    filename = filename + "." + MonitorRobotics.EXT
             self.f = open(filename, "wt")
             self.f.write('#%s\n'%json.dumps({"t_start": self.tstart, "gym_version": gym.__version__,
                 "env_id": env.spec.id if env.spec else 'Unknown'}))
@@ -38,10 +38,11 @@ class Monitor(Wrapper):
         self.episode_lengths = []
         self.total_steps = 0
         self.current_reset_info = {} # extra info about the current episode, that was passed in during reset()
+        self.max_episode_steps = env.max_episode_steps #used for acktr which should match with the enviroment
 
     def _reset(self, **kwargs):
         if not self.allow_early_resets and not self.needs_reset:
-            raise RuntimeError("Tried to reset an environment before done. If you want to allow early resets, wrap your env with Monitor(env, path, allow_early_resets=True)")
+            raise RuntimeError("Tried to reset an environment before done. If you want to allow early resets, wrap your env with MonitorRobotics(env, path, allow_early_resets=True)")
         self.rewards = []
         self.needs_reset = False
         for k in self.reset_keywords:
@@ -84,17 +85,17 @@ class Monitor(Wrapper):
     def get_episode_lengths(self):
         return self.episode_lengths
 
-class LoadMonitorResultsError(Exception):
+class LoadMonitorRoboticsResultsError(Exception):
     pass
 
 def get_monitor_files(dir):
-    return glob(osp.join(dir, "*" + Monitor.EXT))
+    return glob(osp.join(dir, "*" + MonitorRobotics.EXT))
 
 def load_results(dir):
     import pandas
     monitor_files = glob(osp.join(dir, "*monitor.*")) # get both csv and (old) json files
     if not monitor_files:
-        raise LoadMonitorResultsError("no monitor files of the form *%s found in %s" % (Monitor.EXT, dir))
+        raise LoadMonitorRoboticsResultsError("no monitor files of the form *%s found in %s" % (MonitorRobotics.EXT, dir))
     dfs = []
     headers = []
     for fname in monitor_files:
