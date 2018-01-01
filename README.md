@@ -9,9 +9,10 @@ Baselines is a fork of OpenAI's baselines repository with a set of high-quality 
 |[ACKTR](baselines/acktr) | **working** | continuous, discrete | [continuous](https://github.com/erlerobot/ros_rl/tree/master/examples/modular_scara_3dof_v3/train_acktr.py) |  
 |[DDPG](baselines/ddpg) | **working** | continuous | |
 |[DQN](baselines/deepq) | **working** | discrete | |
-|[DQN](https://github.com/erlerobot/continuous-deep-q-learning) | **working** (requires Tensorflow `1.3.0`) | continuous | |
+|[DQN+NAF](https://github.com/erlerobot/continuous-deep-q-learning) | **working** (requires Tensorflow `1.3.0`) | continuous | |
 |[PPO](baselines/ppo1) | **working** | continuous | [continuous](https://github.com/erlerobot/ros_rl/tree/master/examples/modular_scara_3dof_v3/train_ppo1.py) |
 |[TRPO](baselines/trpo_mpi) | **working** | continuous | |
+|[VPG](baselines/vpg) | **working** | continuous | |
 
 
 ## Install
