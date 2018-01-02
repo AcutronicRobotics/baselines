@@ -337,7 +337,7 @@ def learn(env, estimator_policy, estimator_value,
         if done:
             # Log the episode reward
             # episode_total_rew = stats.episode_rewards[num_episodes]
-            summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward",
+            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean",
                 simple_value = episode_reward)])
             summary_writer.add_summary(summary, timestep)
             summary_writer.flush()
