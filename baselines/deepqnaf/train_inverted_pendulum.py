@@ -23,7 +23,7 @@ from mpi4py import MPI
 #Default parameters
 graph = True
 render = True
-env_id = "GazeboModularScara3DOF-v3"
+env_id = "InvertedPendulum-v1"
 noise_type='ou_0.2'
 repeats = 1
 episodes = 200
