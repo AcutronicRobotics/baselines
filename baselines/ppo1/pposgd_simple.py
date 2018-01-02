@@ -254,11 +254,15 @@ def learn(env, policy_func, *,
             if MPI.COMM_WORLD.Get_rank()==0:
                 logger.dump_tabular()
 
+            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+            summary_writer.add_summary(summary, timesteps_so_far)
+
+
     # U.get_session().close()
     # # U.reset()
     # # tf.reset_default_graph()
-    summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-    summary_writer.add_summary(summary, iters_so_far)
+    # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+    # summary_writer.add_summary(summary, iters_so_far)
     return np.mean(rewbuffer)
 
 def safemean(xs):

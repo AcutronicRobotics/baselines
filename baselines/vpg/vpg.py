@@ -277,6 +277,8 @@ def learn(env, estimator_policy, estimator_value,
     state = env.reset()
     # each episode's reward
     episode_reward = 0
+    # save all of the episodes' rewards
+    rewards = []
                         # 2. For iteration=1,2,... do
                         #     2.1 Collect a set of trajectories by executing the current policy obtaining $\mathbf{s}_{0:H},\mathbf{a}_{0:H},r_{0:H}$
     for timestep in range(max_timesteps):
@@ -335,12 +337,21 @@ def learn(env, estimator_policy, estimator_value,
         #         timestep + 1, num_episodes, episode_reward), end="")
 
         if done:
+            # Add the reward to the overall rewards
+            rewards.append(episode_reward)
+
             # Log the episode reward
             # episode_total_rew = stats.episode_rewards[num_episodes]
-            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean",
+            summary = tf.Summary(value=[tf.Summary.Value(tag="Episode Reward",
                 simple_value = episode_reward)])
             summary_writer.add_summary(summary, timestep)
+
+            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean",
+                simple_value = np.mean(rewards))])
+            summary_writer.add_summary(summary, timestep)
+
             summary_writer.flush()
+
 
             # Reset the environment and get firs state
             state = env.reset()
