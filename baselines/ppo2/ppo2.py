@@ -153,7 +153,7 @@ def constfn(val):
 def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
             log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
-            save_interval=0):
+            save_interval=0, outdir="/tmp/experiments/PPO2/"):
 
     if isinstance(lr, float): lr = constfn(lr)
     else: assert callable(lr)
@@ -170,15 +170,16 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
     make_model = lambda : Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
                     nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
                     max_grad_norm=max_grad_norm)
+
+    # Log tensorboard data (always)
+    summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
+
     if save_interval and logger.get_dir():
         import cloudpickle
-        summary_writer = tf.summary.FileWriter(logger.get_dir(), graph=tf.get_default_graph())
         with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
             fh.write(cloudpickle.dumps(make_model))
     model = make_model()
     runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, lam=lam)
-
-
 
     epinfobuf = deque(maxlen=100)
     tfirststart = time.time()
@@ -236,14 +237,19 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             for (lossval, lossname) in zip(lossvals, model.loss_names):
                 logger.logkv(lossname, lossval)
             logger.dumpkvs()
+
+            # Log also in tensorboard
+            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
+            summary_writer.add_summary(summary, update*nsteps)
+
         if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir():
             checkdir = osp.join(logger.get_dir(), 'checkpoints')
             os.makedirs(checkdir, exist_ok=True)
             savepath = osp.join(checkdir, '%.5i'%update)
             print('Saving to', savepath)
             model.save(savepath)
-    summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
-    summary_writer.add_summary(summary, update)
+    # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
+    # summary_writer.add_summary(summary, update)
     return safemean([epinfo['r'] for epinfo in epinfobuf])
     env.close()
 
