@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import gym
 import os
+import time
 import argparse
 import baselines.deepqnaf.naf as naf
 from baselines import logger
@@ -81,6 +82,7 @@ def experiment(args):
     solved = 0 #only relevant if solved_threshold is set
 
     for j in range(args['episodes']):
+      print("\n Episode", j)
       if terminate is not None:
         fill_value = 0
         if terminate == "solved":
@@ -105,7 +107,6 @@ def experiment(args):
           break
         #print(action)
         state_next,reward,terminal,_ = env.step(agent.scale(action, env.action_space.low, env.action_space.high))
-
         if k-1 >= args['max_episode_steps']:
           terminal = True
 
@@ -117,9 +118,27 @@ def experiment(args):
         state = state_next
         rewards += reward
         if terminal:
+          env.render()
+          print('DONE')
           agent.reset()
           break
       experiment_rewards += [rewards]
+      print("logger directory", logger.get_dir())
+      #print("rewards", rewards)
+      #print("np.std(experiment_rewards)", np.std(experiment_rewards))
+      print("EpRew",  mpi_mean(np.mean(experiment_rewards)))
+      print("EpRewStd",  np.std(experiment_rewards))
+      logger.record_tabular("EpRew",  mpi_mean(np.mean(experiment_rewards)))
+      logger.record_tabular("EpRewStd",  np.std(experiment_rewards))
+      logger.dump_tabular()
+
+      #tensorboard
+      tensorboard_outdir = '/tmp/rosrl/GazeboModularScara3DOF-v3/deepq_naf/'+str(j)
+      summary_writer = tf.summary.FileWriter(tensorboard_outdir, graph=tf.get_default_graph())
+      summary = tf.Summary(value=[tf.Summary.Value(tag="Experiment reward", simple_value = mpi_mean(np.mean(experiment_rewards)))])
+      summary_writer.add_summary(summary, j)
+
+      print("experiment_rewards", experiment_rewards)
 
       if args['solve_threshold'] is not None:
         if rewards >= args['solve_threshold']:
@@ -135,14 +154,9 @@ def experiment(args):
     if args['v'] > 1:
       print(np.mean(experiment_rewards[-10:]))
     experiments_rewards += [experiment_rewards]
-    logger.record_tabular("EpRew",  mpi_mean(np.mean(experiment_rewards)))
-    logger.record_tabular("EpRewStd",  mpi_std(np.std(experiment_rewards)))
+
   print("experiments_rewards", mpi_mean(np.mean(experiment_rewards)))
-  #tensorboard
-  tensorboard_outdir = '/tmp/rosrl/GazeboModularScara3DOF-v3/deepq_naf/'
-  summary_writer = tf.summary.FileWriter(tensorboard_outdir, graph=tf.get_default_graph())
-  summary = tf.Summary(value=[tf.Summary.Value(tag="Experiment reward", simple_value = experiment_rewards)])
-  summary_writer.add_summary(summary, job_id)
+
 
 
   return experiments_rewards
