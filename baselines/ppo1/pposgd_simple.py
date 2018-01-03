@@ -9,6 +9,14 @@ from mpi4py import MPI
 from collections import deque
 import os
 
+"""
+Proximal Policy Optimization (PPO)
+PPO is a Policy Grandient (PG) technique that attaines data efficiency comparable
+to TRPO. Standard PG methods perform a gradient update per each data sample. PPO
+allows to do multiple epock of minibatches updates.
+
+"""
+
 def traj_segment_generator(pi, env, horizon, stochastic):
     t = 0
     ac = env.action_space.sample() # not used, just so we have the datatype
@@ -88,7 +96,8 @@ def learn(env, policy_func, *,
         adam_epsilon=1e-5,
         schedule='constant', # annealing for stepsize parameters (epsilon and adam)
         save_model_with_prefix,
-        job_id=None):
+        job_id=None,
+        outdir="/tmp/experiments/continuous/PPO/"):
     # Setup losses and stuff
     # ----------------------------------------
     ob_space = env.observation_space
@@ -145,10 +154,11 @@ def learn(env, policy_func, *,
         assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
 
         if save_model_with_prefix:
-            if job_id is not None:
-                basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
-            else:
-                basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
+            # if job_id is not None:
+            #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
+            # else:
+            #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
+            basePath = outdir
             summary_writer = tf.summary.FileWriter(basePath, graph=tf.get_default_graph())
 
         while True:
@@ -225,15 +235,15 @@ def learn(env, policy_func, *,
             """
             if save_model_with_prefix:
                 if np.mean(rewbuffer) > 0:
-                    if job_id is not None:
-                        basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
-                    else:
-                        basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
-
+                    # if job_id is not None:
+                    #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
+                    # else:
+                    #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
+                    basePath = outdir+"/models/"
 
                     if not os.path.exists(basePath):
                         os.makedirs(basePath)
-                    modelF= basePath + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
+                    modelF= basePath +save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
                     U.save_state(modelF)
                     logger.log("Saved model to file :{}".format(modelF))
 
@@ -244,11 +254,15 @@ def learn(env, policy_func, *,
             if MPI.COMM_WORLD.Get_rank()==0:
                 logger.dump_tabular()
 
+            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+            summary_writer.add_summary(summary, timesteps_so_far)
+
+
     # U.get_session().close()
     # # U.reset()
     # # tf.reset_default_graph()
-    summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-    summary_writer.add_summary(summary, iters_so_far)
+    # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+    # summary_writer.add_summary(summary, iters_so_far)
     return np.mean(rewbuffer)
 
 def safemean(xs):
