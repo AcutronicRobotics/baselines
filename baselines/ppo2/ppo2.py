@@ -239,7 +239,22 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
                 logger.logkv(lossname, lossval)
             logger.dumpkvs()
 
+            # As it is, this baseline (PPO2), is logging from a dictionary provided by the environment itself.
+            # As most environments don't fill up this dictionary, the primitive bench.Monitor from OpenAI's code is used
+            # to wrap an environment within an environment which eventually outputs a dictionary with the corresponding values.
+            #
+            # Ideally, we should compare these "dictionary" values with the rewards obtained from the real environment and use this
+            # to unify this implementation with other baselines.
+
+            # # Research on how to obtain EpRewMean from the environment "real rewards" and not the dictionary epinfobuf
+            # # NOT MANDATORY, just for coherence
+            # print(returns)
+            # print(len(returns))
+            # print(np.sum(returns))
+            # print(np.sum(returns)/nupdates)
+
             # Log in tensorboard every "update % log_interval == 0" with weighted x axis
+            # print([epinfo['r'] for epinfo in epinfobuf])
             summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
             summary_writer.add_summary(summary, update*nsteps)
 
