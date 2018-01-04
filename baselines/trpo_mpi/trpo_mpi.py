@@ -90,7 +90,8 @@ def learn(env, policy_func, *,
         vf_iters =3,
         max_timesteps=0, max_episodes=0, max_iters=0,  # time constraint
         callback=None,
-        save_model_with_prefix
+        save_model_with_prefix,
+        outdir="/tmp/rosrl/experiments/continuous/trpo/"
         ):
     nworkers = MPI.COMM_WORLD.Get_size()
     rank = MPI.COMM_WORLD.Get_rank()
@@ -189,7 +190,11 @@ def learn(env, policy_func, *,
 
     if save_model_with_prefix:
         basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/trpo/'
-        summary_writer = tf.summary.FileWriter(basePath, graph=tf.get_default_graph())
+        # summary_writer = tf.summary.FileWriter(basePath, graph=tf.get_default_graph())
+
+    # Create the writer for TensorBoard logs
+    summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
+
 
 
     while True:
@@ -286,13 +291,18 @@ def learn(env, policy_func, *,
         episodes_so_far += len(lens)
         timesteps_so_far += sum(lens)
 
+        # Log in tensorboard
+        summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+        summary_writer.add_summary(summary, timesteps_so_far)
+
+
         """
         Save the model at every itteration
         """
         if save_model_with_prefix:
             basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/trpo/'
-            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-            summary_writer.add_summary(summary, iters_so_far)
+            # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+            # summary_writer.add_summary(summary, iters_so_far)
             if not os.path.exists(basePath):
                 os.makedirs(basePath)
             modelF= basePath + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
