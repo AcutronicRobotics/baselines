@@ -22,9 +22,9 @@ from mpi4py import MPI
 
 graph = True
 render = True
-#env_id="InvertedPendulum-v1"
+env_id="InvertedPendulum-v1"
 #env_id="HalfCheetah-v1"
-env_id = "GazeboModularScara3DOF-v3"
+#env_id = "GazeboModularScara3DOF-v3"
 noise_type='ou_0.2'
 repeats = 1
 episodes = 1000
