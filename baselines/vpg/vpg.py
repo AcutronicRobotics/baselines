@@ -89,14 +89,34 @@ class PolicyEstimator():
             self.state = tf.placeholder(tf.float32, [400], "state")
             self.target = tf.placeholder(dtype=tf.float32, name="target")
 
-            # This is just linear classifier
-            self.mu = tf.contrib.layers.fully_connected(
+            # # This is just linear classifier
+            # self.mu = tf.contrib.layers.fully_connected(
+            #     inputs=tf.expand_dims(self.state, 0),
+            #     num_outputs=1,
+            #     activation_fn=None,
+            #     weights_initializer=tf.zeros_initializer)
+            # self.mu = tf.squeeze(self.mu)
+
+            # Define mu as a 2-hidden layer NN
+            h1 = tf.contrib.layers.fully_connected(
                 inputs=tf.expand_dims(self.state, 0),
-                num_outputs=1,
+                num_outputs=64,
+                activation_fn=tf.nn.tanh,
+                weights_initializer=tf.zeros_initializer)
+
+            h2 = tf.contrib.layers.fully_connected(
+                inputs=h1,
+                num_outputs=64,
+                activation_fn=tf.nn.tanh,
+                weights_initializer=tf.zeros_initializer)
+
+            self.mu = tf.contrib.layers.fully_connected(
+                inputs=h2,
+                num_outputs=64,
                 activation_fn=None,
                 weights_initializer=tf.zeros_initializer)
-            self.mu = tf.squeeze(self.mu)
 
+            # TODO: continue with sigma
             self.sigma = tf.contrib.layers.fully_connected(
                 inputs=tf.expand_dims(self.state, 0),
                 num_outputs=1,
@@ -105,6 +125,7 @@ class PolicyEstimator():
 
             self.sigma = tf.squeeze(self.sigma)
             self.sigma = tf.nn.softplus(self.sigma) + 1e-5
+
             self.normal_dist = tf.contrib.distributions.Normal(self.mu, self.sigma)
             self.action = self.normal_dist._sample_n(1)
             self.action = tf.clip_by_value(self.action, env.action_space.low[0], env.action_space.high[0])
