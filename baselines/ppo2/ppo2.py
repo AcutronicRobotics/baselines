@@ -239,6 +239,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
                 logger.logkv(lossname, lossval)
             logger.dumpkvs()
 
+<<<<<<< HEAD
             # As it is, this baseline (PPO2), is logging from a dictionary provided by the environment itself.
             # As most environments don't fill up this dictionary, the primitive bench.Monitor from OpenAI's code is used
             # to wrap an environment within an environment which eventually outputs a dictionary with the corresponding values.
@@ -255,6 +256,9 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
 
             # Log in tensorboard every "update % log_interval == 0" with weighted x axis
             # print([epinfo['r'] for epinfo in epinfobuf])
+=======
+            # # Log also in tensorboard
+>>>>>>> 1b6c10649291b6c1a37f768f189eaf2f6a369dff
             summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
             summary_writer.add_summary(summary, update*nsteps)
 
@@ -264,8 +268,11 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             savepath = osp.join(checkdir, '%.5i'%update)
             print('Saving to', savepath)
             model.save(savepath)
+<<<<<<< HEAD
 
         # # Log in tensorboard every "update"
+=======
+>>>>>>> 1b6c10649291b6c1a37f768f189eaf2f6a369dff
         # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
         # summary_writer.add_summary(summary, update)
     return safemean([epinfo['r'] for epinfo in epinfobuf])
