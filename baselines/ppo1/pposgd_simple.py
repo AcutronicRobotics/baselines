@@ -96,7 +96,7 @@ def learn(env, policy_func, *,
         adam_epsilon=1e-5,
         schedule='constant', # annealing for stepsize parameters (epsilon and adam)
         save_model_with_prefix, # this is the naming of the saved model file. Usually here we set indication of the target goal:
-                                # for example 3dof_ppo1_test_H.
+                                # for example 3dof_ppo1_H.
                                 # That way we can only select which networks we can execute to the real robot. We do not have to send all files or folder.
                                 # Naming of the model file should be self explanatory.
         job_id=None, # this variable is used for indentifing Spearmint iteration number. It is usually set by the Spearmint iterator

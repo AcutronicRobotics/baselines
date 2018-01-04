@@ -116,6 +116,7 @@ def learn(env,
           param_noise=False,
           callback=None,
           job_id=None,
+          outdir="/tmp/rosrl/experiments/discrete/deepq/"
           ):
     """Train a deepqn model.
 
