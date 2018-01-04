@@ -30,9 +30,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 		reward_scale=reward_scale)
 	logger.info('Using agent with the following configuration:')
 	logger.info(str(agent.__dict__.items()))
-	outdir = '/tmp/rosrl/GazeboModularScara3DOFv2Env/ddpg/'+job_id
-
-
+	# outdir = '/tmp/rosrl/GazeboModularScara3DOFv2Env/ddpg/'+job_id
+	outdir = outdir+job_id
 
 	# Set up logging stuff only for a single worker.
 	if rank == 0:
@@ -58,7 +57,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 	episode_reward = 0.
 	episode_step = 0
 	episodes = 0
-	t = 0
+	t = 0	# timesteps
 
 	sim_r = 0
 	sim_t = 0
@@ -74,17 +73,20 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 	epoch_actions = []
 	epoch_qs = []
 
+	# Tensorboard logger
+	summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
+
 	epoch_episodes = 0
 	for epoch in range(nb_epochs):
 		rewards = []
-		logger.info('epoch %i:',epoch)
+		# logger.info('epoch: ',epoch)
 		for cycle in range(nb_epoch_cycles):
 			#logger.info('Cycle no %i:',cycle)
 			# Perform rollouts.
 			for t_rollout in range(nb_rollout_steps):
 				# Predict next action.
 				action, q = agent.pi(obs, apply_noise=True, compute_Q=True)
-				print("action", action)
+				# print("action", action)
 				assert action.shape == env.action_space.shape
 
 				# Execute next action.
@@ -109,9 +111,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 				obs = new_obs
 
 				if done:
-					logger.info('Episode reward %d:',episode_reward)
+					logger.info('Episode reward: ',episode_reward)
 					done_quant += 1
-					logger.info('DONE')
+					# logger.info('DONE')
 					# Episode done.
 					epoch_episode_rewards.append(episode_reward)
 					episode_rewards_history.append(episode_reward)
@@ -173,6 +175,17 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 		if len(episode_rewards_history) > 0:
 			logger.record_tabular("EpRewHistMean",  mpi_mean(np.mean(episode_rewards_history)))
 
+		# Log (per epochs) in tensorboard
+		#
+		# summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewards))])
+		# summary_writer.add_summary(summary, t)
+
+		# TODO: fix variables and naming appropriately
+		# summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = mpi_mean(np.mean(episode_rewards_history)))])
+		summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = mpi_mean(epoch_episode_rewards))])
+		summary_writer.add_summary(summary, t)
+		summary_writer.flush()
+
 		# Rollout statistics.
 		combined_stats['rollout/return'] = mpi_mean(epoch_episode_rewards)
 		combined_stats['rollout/return_history'] = mpi_mean(np.mean(episode_rewards_history))
@@ -220,12 +233,15 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval , reward_scale, render, p
 				with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
 					pickle.dump(eval_env.get_state(), f)
 	optim_metric = 1-(sim_r/sim_t)
-	summary_writer_error = tf.summary.FileWriter(outdir+'/error/', graph=tf.get_default_graph())
-	summary = tf.Summary(value=[tf.Summary.Value(tag="Simulation rewards", simple_value = optim_metric)])
-	summary_writer_error.add_summary(summary, job_id)
-	summary_writer_done = tf.summary.FileWriter(outdir+'/done/', graph=tf.get_default_graph())
-	summary = tf.Summary(value=[tf.Summary.Value(tag="Done", simple_value = done_quant)])
-	summary_writer_done.add_summary(summary, job_id)
+
+	# # Log in Tensorboard once finished epochs, rollouts and steps
+	# summary_writer_error = tf.summary.FileWriter(outdir+'/error/', graph=tf.get_default_graph())
+	# summary = tf.Summary(value=[tf.Summary.Value(tag="Simulation rewards", simple_value = optim_metric)])
+	# summary_writer_error.add_summary(summary, job_id)
+	# summary_writer_done = tf.summary.FileWriter(outdir+'/done/', graph=tf.get_default_graph())
+	# summary = tf.Summary(value=[tf.Summary.Value(tag="Done", simple_value = done_quant)])
+	# summary_writer_done.add_summary(summary, job_id)
+
 	print("Optimization metric", 1 - (sim_r/sim_t))
 	return (1-sim_r/sim_t)
 	# sess.close()

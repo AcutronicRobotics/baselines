@@ -320,7 +320,7 @@ class DDPG(object):
 
     def initialize(self, sess):
         self.sess = sess
-        self.sess.run(tf.global_variables_initializer())
+        self.sess.run(tf.global_variables_initializer())        
         self.actor_optimizer.sync()
         self.critic_optimizer.sync()
         self.sess.run(self.target_init_updates)
