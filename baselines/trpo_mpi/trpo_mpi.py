@@ -90,7 +90,7 @@ def learn(env, policy_func, *,
         vf_iters =3,
         max_timesteps=0, max_episodes=0, max_iters=0,  # time constraint
         callback=None,
-        save_model_with_prefix
+        save_model_with_prefix, outdir="/tmp/rosrl/experiments/continuous/trpo/"
         ):
     nworkers = MPI.COMM_WORLD.Get_size()
     rank = MPI.COMM_WORLD.Get_rank()

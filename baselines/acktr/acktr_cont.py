@@ -48,7 +48,7 @@ def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
             "action_dist": np.array(ac_dists), "logp" : np.array(logps)}
 
 def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
-    animate=False, callback=None, desired_kl=0.002, save_model_with_prefix=None, restore_model_from_file=None):
+    animate=False, callback=None, desired_kl=0.002, save_model_with_prefix=None, restore_model_from_file=None, outdir="/tmp/rosrl/experiments/continuous/acktr/"):
 
     obfilter = ZFilter(env.observation_space.shape)
     # Risto change

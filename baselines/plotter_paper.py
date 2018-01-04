@@ -52,10 +52,18 @@ def plot_results(plot_name, all_values, labels, smooth=True):
         # print(np.asarray(columns['EpRewMean']))
         # print(np.asarray(columns['EpRewSEM']))
 
-
         color = color_defaults[i]
-        y_mean = np.asarray(list(map(float,columns['EpRewMean'])))
-        y_std = np.asarray(list(map(float,columns['EpRewSEM'])))
+
+        # if i is 0:
+        #     color = color_defaults[i]
+        # else:
+        #     color = color_defaults[i+1]
+        if i > 2 and i < 5:
+            y_mean = np.asarray(list(map(float,columns['EpochEpRewMean'])))
+            y_std = np.asarray(list(map(float,columns['EpochEpRewStd'])))
+        else:
+            y_mean = np.asarray(list(map(float,columns['EpRewMean'])))
+            y_std = np.asarray(list(map(float,columns['EpRewSEM'])))
         # print("before clean size mean: ", y_mean.size)
         # print("before clean size std: ", y_std.size)
         # # y_mean = [x for x in y_mean if y_mean is not NaN]
@@ -73,7 +81,7 @@ def plot_results(plot_name, all_values, labels, smooth=True):
             y_std = savgol_filter(y_std, 11, 3)
 
 
-        # print("i: ", i, "y_mean_max: ", max(y_mean), "y_mean_min: ", min(y_mean))
+        print("i: ", i, "; y_mean_max: ", max(y_mean), "; y_mean_min: ", min(y_mean), "; overall mean: ", np.mean(y_mean), "; overall_std: ", np.std(y_mean))
 
         y_upper = y_mean + y_std
         y_lower = y_mean - y_std
@@ -92,7 +100,7 @@ def plot_results(plot_name, all_values, labels, smooth=True):
     plt.xlim([0,1000000])
     # plt.ylim([-400,20])
     plt.xlabel("Number of Timesteps")
-    plt.ylabel("Episode Reward")
+    plt.ylabel("Mean Episode Reward")
     plt.title(plot_name)
     plt.xticks([200000, 400000, 600000, 800000, 1000000], ["200K", "400K", "600K", "800K", "1M"])
 
@@ -106,15 +114,25 @@ plot_name = "Scara 3DoF"
 # i = 0
 # for plot_name in plot_names:
 datas = []
-# datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_12222017/ppo1/monitor/progress.csv")
-datas.append("/tmp/rosrl/GazeboModularScara3DOFv3Env/ppo1/monitor/progress.csv")
-# datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_12222017/ppo2/progress.csv") #, "-acktr-seed", env_id
-datas.append("/tmp/rosrl/GazeboModularScara3DOFv3Env/acktr/monitor/progress.csv")
-# datas.append(load("data/mujoco/trpo/", "-trpo-seed", env_id))
-# plt.subplot(len(env_ids) / columns + 1, columns, i + 1)
-# i += 1
-labels = ["PPO1","PPO2", "ACKTR"] #"ACKTR",
-plot_results(plot_name, datas, labels, smooth=False)
+datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_max_step/ppo1/monitor/progress.csv")
+datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_max_step/ppo2/progress.csv")
+datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_max_step/acktr/monitor/progress.csv")
 
+# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/deepq/default_hyperpar/progress_max_episode_step_1000.csv")
+datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/ddpg/GazeboModularScara3DOFv3Env/default_hyperpar/progress_g_0_8_max_ep_1000_nb_rollout_1000.csv")
+datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/ddpg/GazeboModularScara3DOFv3Env/default_hyperpar/progress_g_0_99_max_ep_1000_nb_rollout_1000.csv")
+
+#Articulated arm
+# datas.append("/tmp/rosrl/GazeboModularArticulatedArm4DOFv1Env/ppo2/progress.csv")
+
+labels = ["PPO1", "PPO2","ACKTR", "DDPG (gamma=0.8)", "DDPG (gamma=0.99)"] #"ACKTR",
+# labels = [ "DDPG (gamma=0.8)", "DDPG (gamma=0.99)"] #"ACKTR",
+plot_results(plot_name, datas, labels, smooth=True)
 plt.tight_layout()
+
+plt.savefig('all_rl.png', dpi=400, facecolor='w', edgecolor='w',
+        orientation='landscape', papertype='b0', format=None,
+        transparent=False, bbox_inches='tight', pad_inches=0.1,
+        frameon=None)
+
 plt.show()

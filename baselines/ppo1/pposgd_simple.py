@@ -95,9 +95,12 @@ def learn(env, policy_func, *,
         callback=None, # you can do anything in the callback, since it takes locals(), globals()
         adam_epsilon=1e-5,
         schedule='constant', # annealing for stepsize parameters (epsilon and adam)
-        save_model_with_prefix,
-        job_id=None,
-        outdir="/tmp/experiments/continuous/PPO/"):
+        save_model_with_prefix, # this is the naming of the saved model file. Usually here we set indication of the target goal:
+                                # for example 3dof_ppo1_H.
+                                # That way we can only select which networks we can execute to the real robot. We do not have to send all files or folder.
+                                # Naming of the model file should be self explanatory.
+        job_id=None, # this variable is used for indentifing Spearmint iteration number. It is usually set by the Spearmint iterator
+        outdir="/tmp/rosrl/experiments/continuous/ppo1/"):
     # Setup losses and stuff
     # ----------------------------------------
     ob_space = env.observation_space
@@ -154,12 +157,13 @@ def learn(env, policy_func, *,
         assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
 
         if save_model_with_prefix:
-            # if job_id is not None:
-            #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
-            # else:
-            #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
-            basePath = outdir
-            summary_writer = tf.summary.FileWriter(basePath, graph=tf.get_default_graph())
+            if job_id is not None:
+                basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
+            else:
+                basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
+
+        # Create the writer for TensorBoard logs
+        summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
 
         while True:
             if callback: callback(locals(), globals())
