@@ -238,9 +238,9 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
                 logger.logkv(lossname, lossval)
             logger.dumpkvs()
 
-            # # Log also in tensorboard
-            # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
-            # summary_writer.add_summary(summary, update*nsteps)
+            # Log in tensorboard every "update % log_interval == 0" with weighted x axis
+            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
+            summary_writer.add_summary(summary, update*nsteps)
 
         if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir():
             checkdir = osp.join(logger.get_dir(), 'checkpoints')
@@ -248,8 +248,10 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             savepath = osp.join(checkdir, '%.5i'%update)
             print('Saving to', savepath)
             model.save(savepath)
-        summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
-        summary_writer.add_summary(summary, update)
+
+        # # Log in tensorboard every "update"
+        # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
+        # summary_writer.add_summary(summary, update)
     return safemean([epinfo['r'] for epinfo in epinfobuf])
     env.close()
 
