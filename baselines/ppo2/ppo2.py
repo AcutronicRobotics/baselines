@@ -255,8 +255,6 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
 
             # Log in tensorboard every "update % log_interval == 0" with weighted x axis
             # print([epinfo['r'] for epinfo in epinfobuf])
-
-            # # Log also in tensorboard
             summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
             summary_writer.add_summary(summary, update*nsteps)
 
