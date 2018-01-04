@@ -248,6 +248,8 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
 
             # # Research on how to obtain EpRewMean from the environment "real rewards" and not the dictionary epinfobuf
             # # NOT MANDATORY, just for coherence
+            # RK: The PPO1 uses same technique as in Monitor. fills up the reward buffer until done=True, then resets it.
+            # Then this is use to calculate mean episode reward.
             # print(returns)
             # print(len(returns))
             # print(np.sum(returns))
