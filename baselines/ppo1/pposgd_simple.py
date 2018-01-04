@@ -154,12 +154,13 @@ def learn(env, policy_func, *,
         assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
 
         if save_model_with_prefix:
-            # if job_id is not None:
-            #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
-            # else:
-            #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
-            basePath = outdir
-            summary_writer = tf.summary.FileWriter(basePath, graph=tf.get_default_graph())
+            if job_id is not None:
+                basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
+            else:
+                basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
+
+        # Create the writer for TensorBoard logs    
+        summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
 
         while True:
             if callback: callback(locals(), globals())
