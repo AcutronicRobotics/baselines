@@ -12,7 +12,10 @@ class MonitorRobotics(Wrapper):
     EXT = "monitor.csv"
     f = None
 
-    def __init__(self, env, filename, allow_early_resets=False, reset_keywords=()):
+    def __init__(self, env, filename,
+                    allow_early_resets=False,
+                    reset_keywords=(),
+                    robotics=True):
         Wrapper.__init__(self, env=env)
         self.tstart = time.time()
         if filename is None:
@@ -38,7 +41,8 @@ class MonitorRobotics(Wrapper):
         self.episode_lengths = []
         self.total_steps = 0
         self.current_reset_info = {} # extra info about the current episode, that was passed in during reset()
-        self.max_episode_steps = env.max_episode_steps #used for acktr which should match with the enviroment
+        if robotics:
+            self.max_episode_steps = env.max_episode_steps #used for acktr which should match with the enviroment
 
     def _reset(self, **kwargs):
         if not self.allow_early_resets and not self.needs_reset:
