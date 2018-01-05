@@ -1,38 +1,30 @@
-
 import gym
-import gym_gazebo
 import logging
 import numpy as np
 import tensorflow as tf
-
 from baselines import logger, bench
 from baselines.common.misc_util import (
     set_global_seeds,
     boolean_flag,
 )
-# from src.naf import NAF
-# from src.network import Network
-# from src.statistic import Statistic
-# from src.exploration import OUExploration, BrownianExploration, LinearDecayExploration
-
-from naf import NAF
-from network import Network
-from statistic import Statistic
-from exploration import OUExploration, BrownianExploration, LinearDecayExploration
-
-from utils import get_model_dir, preprocess_conf
+from .naf import NAF
+from .network import Network
+from .statistic import Statistic
+from .exploration import OUExploration, BrownianExploration, LinearDecayExploration
+from .utils import get_model_dir, preprocess_conf
 
 
-def learn (env,
+def learn(env,
+            sess,
             noise = 'ou',
             noise_scale = 0.2,
             hidden_dims = [100,100],
             use_batch_norm = True,
             use_seperate_networks = False,
-            hidden_w = 'uniform_big',
-            action_w = 'uniform_big',
-            hidden_fn = 'tanh',
-            action_fn = 'tanh',
+            hidden_w = tf.random_uniform_initializer(-0.05, 0.05),
+            action_w = tf.random_uniform_initializer(-0.05, 0.05),
+            hidden_fn = tf.nn.tanh,
+            action_fn = tf.nn.tanh,
             w_reg = None,
             clip_action = False,
             tau = 0.001,
@@ -41,21 +33,12 @@ def learn (env,
             batch_size = 100,
             max_steps = 200,
             update_repeat = 5,
-            max_episodes = 1000):
-  # set random seed
-  tf.set_random_seed(123)
-  np.random.seed(123)
+            max_episodes = 1000,
+            outdir="/tmp/rosrl/experiments/continuous/deepqnaf/"):
 
-
-  with tf.Session() as sess:
-    # environment
-    env = gym.make(env)
-    env._seed(123)
-
-    assert isinstance(env.observation_space, gym.spaces.Box), \
-      "observation space must be continuous"
-    assert isinstance(env.action_space, gym.spaces.Box), \
-      "action space must be continuous"
+    # # set random seed
+    # tf.set_random_seed(123)
+    # np.random.seed(123)
 
     # exploration strategy
     if noise == 'ou':
@@ -96,11 +79,11 @@ def learn (env,
 
     # agent = NAF(sess, env, strategy, pred_network, target_network, stat,
     #             discount, batch_size, learning_rate,
-    #             max_steps, update_repeat, max_episodes)
+    #             max_steps, update_repeat, max_episodes, outdir)
 
     agent = NAF(sess, env, strategy, pred_network, target_network,
                 discount, batch_size, learning_rate,
-                max_steps, update_repeat, max_episodes)
+                max_steps, update_repeat, max_episodes, outdir)
     #agent.run(conf.monitor, conf.display, conf.is_train)
     agent.run(False, False, True)
     #agent.run2(conf.monitor, conf.display, True)
