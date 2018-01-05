@@ -96,6 +96,11 @@ class NAF(object):
             # 2. step
             self.prestates.append(state)
             state, reward, terminal, _ = self.env.step(action)
+
+            # Tensorboard, capture per-episode rewards
+            summary = tf.Summary(value=[tf.Summary.Value(tag="Episode Reward", simple_value = reward)])
+            summary_writer.add_summary(summary, it)
+
             self.poststates.append(state)
 
             terminal = True if t == self.max_steps - 1 else terminal
