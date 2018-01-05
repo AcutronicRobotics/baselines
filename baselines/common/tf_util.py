@@ -287,11 +287,11 @@ def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", 
 
 def dense(x, size, name, weight_init=None, bias=True):
     # U.initialize()
-    print("In dense initializer", name)
+    # print("In dense initializer", name)
     w = tf.get_variable(name + "/w", [x.get_shape()[1], size], initializer=weight_init)
     ret = tf.matmul(x, w)
     if bias:
-        print("In bias initializer", name)
+        # print("In bias initializer", name)
         b = tf.get_variable(name + "/b", [size], initializer=tf.zeros_initializer())
         return ret + b
     else:
