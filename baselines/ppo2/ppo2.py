@@ -65,6 +65,9 @@ class Model(object):
         def save(save_path):
             ps = sess.run(params)
             joblib.dump(ps, save_path)
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            saver = tf.train.Saver()
+            saver.save(sess, save_path)
 
         def load(load_path):
             loaded_params = joblib.load(load_path)
@@ -266,6 +269,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             savepath = osp.join(checkdir, '%.5i'%update)
             print('Saving to', savepath)
             model.save(savepath)
+
 
         # # Log in tensorboard every "update"
         # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
