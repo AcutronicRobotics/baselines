@@ -238,7 +238,7 @@ def learn(env, policy_func, *,
             Save the model at every itteration
             """
             if save_model_with_prefix:
-                if np.mean(rewbuffer) > 0:
+                if np.mean(rewbuffer) > -5.0:
                     # if job_id is not None:
                     #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
                     # else:
