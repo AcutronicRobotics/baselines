@@ -262,6 +262,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             # print([epinfo['r'] for epinfo in epinfobuf])
             summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
             summary_writer.add_summary(summary, update*nsteps)
+            summary_writer.flush()
 
         if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir():
             checkdir = osp.join(logger.get_dir(), 'checkpoints')
