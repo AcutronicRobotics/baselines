@@ -94,6 +94,7 @@ class Runner(object):
         nenv = env.num_envs
         self.obs = np.zeros((nenv,) + env.observation_space.shape, dtype=model.train_model.X.dtype.name)
         self.obs[:] = env.reset()
+        # print("obs shape:", self.obs.shape)
         self.gamma = gamma
         self.lam = lam
         self.nsteps = nsteps
@@ -227,6 +228,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
         lossvals = np.mean(mblossvals, axis=0)
         tnow = time.time()
         fps = int(nbatch / (tnow - tstart))
+
         if update % log_interval == 0 or update == 1:
             ev = explained_variance(values, returns)
             logger.logkv("serial_timesteps", update*nsteps)
@@ -264,7 +266,9 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             summary_writer.add_summary(summary, update*nsteps)
             summary_writer.flush()
 
-        if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir():
+        # added by Risto, also save the network when the mean reward threshold is > 0.5
+        mean_rew = safemean([epinfo['r'] for epinfo in epinfobuf])
+        if save_interval and (update % save_interval == 0 or update == 1 or mean_rew>0.8) and logger.get_dir():
             checkdir = osp.join(logger.get_dir(), 'checkpoints')
             os.makedirs(checkdir, exist_ok=True)
             savepath = osp.join(checkdir, '%.5i'%update)

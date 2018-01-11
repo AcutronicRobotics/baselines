@@ -132,6 +132,7 @@ class CnnPolicy(object):
 class MlpPolicy(object):
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False): #pylint: disable=W0613
         ob_shape = (nbatch,) + ob_space.shape
+        print("Ob shape in mlp policy: ", ob_shape)
         actdim = ac_space.shape[0]
         X = tf.placeholder(tf.float32, ob_shape, name='Ob') #obs
         with tf.variable_scope("model", reuse=reuse):
@@ -141,7 +142,7 @@ class MlpPolicy(object):
             h1 = fc(X, 'vf_fc1', nh=64, init_scale=np.sqrt(2), act=tf.tanh)
             h2 = fc(h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2), act=tf.tanh)
             vf = fc(h2, 'vf', 1, act=lambda x:x)[:,0]
-            logstd = tf.get_variable(name="logstd", shape=[1, actdim], 
+            logstd = tf.get_variable(name="logstd", shape=[1, actdim],
                 initializer=tf.zeros_initializer())
 
         pdparam = tf.concat([pi, pi * 0.0 + logstd], axis=1)
