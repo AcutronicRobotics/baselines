@@ -265,7 +265,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
 
         # added by Risto, also save the network when the mean reward threshold is > 0.5
         mean_rew = safemean([epinfo['r'] for epinfo in epinfobuf])
-        if save_interval and (update % save_interval == 0 or update == 1 or mean_rew>0.8) and logger.get_dir():
+        if save_interval and (update % save_interval == 0 or update == 1 or mean_rew>-50.) and logger.get_dir():
             checkdir = osp.join(logger.get_dir(), 'checkpoints')
             os.makedirs(checkdir, exist_ok=True)
             savepath = osp.join(checkdir, '%.5i'%update)
