@@ -86,8 +86,8 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
     timesteps_so_far = 0
 
     if save_model_with_prefix:
-        basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/acktr/'
-        summary_writer = tf.summary.FileWriter(basePath, graph=tf.get_default_graph())
+        # basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/acktr/'
+        summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
 
     while True:
         if timesteps_so_far > num_timesteps:
@@ -158,12 +158,12 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
         """
         if save_model_with_prefix:
             if np.mean([path["reward"].sum() for path in paths]) > -50.0:
-                basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/acktr/'
+                # basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/acktr/'
                 summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean([path["reward"].sum() for path in paths]))])
                 summary_writer.add_summary(summary, i)
-                if not os.path.exists(basePath):
-                    os.makedirs(basePath)
-                modelF= basePath + save_model_with_prefix+"_afterIter_"+str(i)+".model"
+                if not os.path.exists(outdir):
+                    os.makedirs(outdir)
+                modelF= outdir + save_model_with_prefix+"_afterIter_"+str(i)+".model"
                 U.save_state(modelF)
                 logger.log("Saved model to file :{}".format(modelF))
 
