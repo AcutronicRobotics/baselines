@@ -94,6 +94,7 @@ def learn(env, policy_func, *,
         max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0,  # time constraint
         callback=None, # you can do anything in the callback, since it takes locals(), globals()
         adam_epsilon=1e-5,
+        restore_model_from_file=None,
         schedule='constant', # annealing for stepsize parameters (epsilon and adam)
         save_model_with_prefix, # this is the naming of the saved model file. Usually here we set indication of the target goal:
                                 # for example 3dof_ppo1_H.
@@ -142,6 +143,14 @@ def learn(env, policy_func, *,
 
         U.initialize()
         adam.sync()
+
+        """
+        Here we add a possibility to resume from a previously saved model if a model file is provided
+        """
+        if restore_model_from_file:
+            saver = tf.train.Saver(tf.all_variables(), reshape=True)
+            saver.restore(tf.get_default_session(), restore_model_from_file)
+            logger.log("Loaded model from {}".format(restore_model_from_file))
 
         # Prepare for rollouts
         # ----------------------------------------

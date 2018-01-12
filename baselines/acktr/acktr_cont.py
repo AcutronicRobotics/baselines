@@ -157,7 +157,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
         Save the model at every itteration
         """
         if save_model_with_prefix:
-            if np.mean([path["reward"].sum() for path in paths]) > -5.0:
+            if np.mean([path["reward"].sum() for path in paths]) > -50.0:
                 basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/acktr/'
                 summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean([path["reward"].sum() for path in paths]))])
                 summary_writer.add_summary(summary, i)
