@@ -163,7 +163,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
                 summary_writer.add_summary(summary, i)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
-                modelF= outdir + save_model_with_prefix+"_afterIter_"+str(i)+".model"
+                modelF= outdir + '/' + save_model_with_prefix+"_afterIter_"+str(i)+".model"
                 U.save_state(modelF)
                 logger.log("Saved model to file :{}".format(modelF))
 
