@@ -59,8 +59,8 @@ def plot_results(plot_name, all_values, labels, smooth=True):
         # else:
         #     color = color_defaults[i+1]
         if i > 2 and i < 5:
-            y_mean = np.asarray(list(map(float,columns['EpochEpRewMean'])))
-            y_std = np.asarray(list(map(float,columns['EpochEpRewStd'])))
+            y_mean = np.asarray(list(map(float,columns['EpRewMean100'])))
+            y_std = np.asarray(list(map(float,columns['EpRewMean100'])))
         else:
             y_mean = np.asarray(list(map(float,columns['EpRewMean'])))
             y_std = np.asarray(list(map(float,columns['EpRewSEM'])))
@@ -98,7 +98,7 @@ def plot_results(plot_name, all_values, labels, smooth=True):
 
     plt.legend(lines, names, loc=4)
     plt.xlim([0,1000000])
-    # plt.ylim([-400,20])
+    plt.ylim([-400,100])
     plt.xlabel("Number of Timesteps")
     plt.ylabel("Mean Episode Reward")
     plt.title(plot_name)
@@ -119,13 +119,13 @@ datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOF
 datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_max_step/acktr/monitor/progress.csv")
 
 # datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/deepq/default_hyperpar/progress_max_episode_step_1000.csv")
-datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/ddpg/GazeboModularScara3DOFv3Env/default_hyperpar/progress_g_0_8_max_ep_1000_nb_rollout_1000.csv")
-datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/ddpg/GazeboModularScara3DOFv3Env/default_hyperpar/progress_g_0_99_max_ep_1000_nb_rollout_1000.csv")
+datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/final_results/progress_ddpg_g_0_99.csv")
+datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/final_results/progress_deepq_naf_3dof.csv")
 
 #Articulated arm
 # datas.append("/tmp/rosrl/GazeboModularArticulatedArm4DOFv1Env/ppo2/progress.csv")
 
-labels = ["PPO1", "PPO2","ACKTR", "DDPG (gamma=0.8)", "DDPG (gamma=0.99)"] #"ACKTR",
+labels = ["PPO1", "PPO2","ACKTR", "DDPG", "NAF"] #"ACKTR",
 # labels = [ "DDPG (gamma=0.8)", "DDPG (gamma=0.99)"] #"ACKTR",
 plot_results(plot_name, datas, labels, smooth=True)
 plt.tight_layout()

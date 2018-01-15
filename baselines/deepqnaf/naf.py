@@ -9,8 +9,7 @@ import tensorflow as tf
 from collections import deque
 from tensorflow.contrib.framework import get_variables
 
-#from utils_time import get_timestamp
-from baselines.deepqnaf.utils_time import get_timestamp #activate if you run experiments from another directory
+from .utils_time import get_timestamp
 
 class NAF(object):
   # def __init__(self, sess,
@@ -18,9 +17,14 @@ class NAF(object):
   #              discount, batch_size, learning_rate,
   #              max_steps, update_repeat, max_episodes):
   def __init__(self, sess,
-               env, strategy, pred_network, target_network,
-               discount, batch_size, learning_rate,
-               max_steps, update_repeat, max_episodes):
+               env, strategy,
+               pred_network, target_network,
+               discount, batch_size,
+               learning_rate,
+               max_steps, update_repeat, max_episodes,
+               outdir):
+
+    self.outdir = outdir
     self.sess = sess
     self.env = env
     self.strategy = strategy
@@ -53,16 +57,24 @@ class NAF(object):
     #self.stat.load_model()
     #self.target_network.hard_copy_from(self.pred_network)
 
-    logdir = '/tmp/rosrl/' + str(self.env.__class__.__name__) +'/deepq_naf/monitor/'
+    # given by self.outdir
+    # logdir = '/tmp/rosrl/' + str(self.env.__class__.__name__) +'/deepq_naf/monitor/'
+    # outdir = '/tmp/rosrl/' + str(self.env.__class__.__name__) +'/deepq_naf/tensorboard'
+
+    logdir = self.outdir
     logger.configure(os.path.abspath(logdir))
-    env = bench.MonitorRobotics(self.env, logger.get_dir() and os.path.join(logger.get_dir()), allow_early_resets=True) #, allow_early_resets=True
+    # TODO: review this and the modifcations introduced in MonitorRobotics to make it work
+    env = bench.MonitorRobotics(self.env, logger.get_dir() and os.path.join(logger.get_dir()),
+            allow_early_resets=True, robotics=False)
     gym.logger.setLevel(logging.WARN)
 
-    outdir = '/tmp/rosrl/' + str(self.env.__class__.__name__) +'/deepq_naf/tensorboard'
 
-    summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
     summary_writer_ep_mean = tf.summary.FileWriter('/tmp/rosrl/' + str(self.env.__class__.__name__) +'/deepq_naf/tensorboard/ep_mean/', graph=tf.get_default_graph())
     summary_writer_ep_mean_100 = tf.summary.FileWriter('/tmp/rosrl/' + str(self.env.__class__.__name__) +'/deepq_naf/tensorboard/ep_mean_100/', graph=tf.get_default_graph())
+
+    # Create the tensorboard writer
+    summary_writer = tf.summary.FileWriter(self.outdir, graph=tf.get_default_graph())
+
     #if monitor:
       #self.env.monitor.start('/tmp/%s-%s' % (self.stat.env_name, get_timestamp()))
     init = tf.global_variables_initializer() ###
@@ -72,17 +84,14 @@ class NAF(object):
     episodes_solved = 0
     it = 0
     display = False
-    #for self.idx_episode in xrange(self.max_episodes):
-    #Python3
+
     for self.idx_episode in range(self.max_episodes):
           print("Episode", self.idx_episode)
-
-          state = self.env.reset()
-
+          state = env.reset()
           #for t in xrange(0, self.max_steps):
           episode_reward = 0
           episodes_solved = 0
-          #Python3
+
           for t in range(0, self.max_steps):
             #it = it + 1
             if display: self.env.render()
@@ -93,11 +102,17 @@ class NAF(object):
             # 2. step
             self.prestates.append(state)
             state, reward, terminal, _ = self.env.step(action)
+
+            # Tensorboard, capture per-episode rewards
+            summary = tf.Summary(value=[tf.Summary.Value(tag="Episode Reward", simple_value = reward)])
+            summary_writer.add_summary(summary, it)
+
             self.poststates.append(state)
 
             terminal = True if t == self.max_steps - 1 else terminal
 
             # 3. perceive
+            # TODO: Nora, please include the update_repeat=5 in the loop
             if is_train:
 
               #q, v, a, l, it = self.perceive(state, reward, action, terminal, it)
@@ -107,7 +122,7 @@ class NAF(object):
                 #self.stat.on_step(action, reward, terminal, q, v, a, l)
             episode_reward += reward
             if terminal:
-                print("Episode_reward", episode_reward)
+                # print("Episode_reward", episode_reward)
                 episode_rewards.append(episode_reward)
                 episode_rewards_100.append(episode_reward)
                 ep_rew_mean = np.mean(episode_rewards)
@@ -124,11 +139,9 @@ class NAF(object):
                 # print("It tensorboard", it)
                 # summary_writer.add_summary(summary, it)
                 summary_ep_mean = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = ep_rew_mean)])
-                print("It tensorboard", it)
                 summary_writer_ep_mean.add_summary(summary_ep_mean, it)
                 summary_writer_ep_mean.flush()
                 summary_ep_mean_100 = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean100", simple_value = ep_rew_mean_100)])
-                print("It tensorboard", it)
                 summary_writer_ep_mean_100.add_summary(summary_ep_mean_100, it)
                 summary_writer_ep_mean_100.flush()
                 episode_reward = 0
@@ -136,17 +149,6 @@ class NAF(object):
                 observation = self.env.reset()
                 self.strategy.reset()
               #break
-
-
-        #   logger.info("REWARDS")
-        #   logger.record_tabular("EpRewMean", np.mean(episode_rewards))
-        #   logger.record_tabular("EpRewMean100", np.mean(episode_rewards_100))
-        #   logger.record_tabular("EpRewStd", np.std(episode_rewards))
-        #   logger.record_tabular("TimestepsSoFar", it)
-        #   logger.dump_tabular()
-
-          #Create the writer for TensorBoard logs
-
 
     #if monitor:
       #self.env.monitor.close()
@@ -175,14 +177,13 @@ class NAF(object):
 
 
     for i_episode in range(self.max_episodes):
-      # Create the writer for TensorBoard logs
-      outdir = '/tmp/rosrl/' + str(self.env.__class__.__name__) +'/deepq_naf/'+str(i_episode)
+
+
       # Create the writer for TensorBoard logs
       summary_writer_ep_mean = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
-      print("\nOUTDIR", outdir)
       summary_writer_ep_mean_100 = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
-      observation = self.env.reset()
 
+      observation = self.env.reset()
       episode_reward = 0
       episodes_solved = 0
       for t in range(self.max_steps):
@@ -227,16 +228,19 @@ class NAF(object):
             observation = self.env.reset()
           #break
 
-      print ("average loss:", loss_/k)
+    #   print ("average loss:", loss_/k)
       print ("Episode {} finished after {} timesteps, reward {}".format(i_episode + 1, t + 1, episode_reward))
       total_reward += episode_reward
       ep_rew_mean = np.mean(episode_rewards)
-      print("EpRewMean", np.mean(episode_rewards))
-      print("EpRewStd", np.std(episode_rewards))
+    #   print("EpRewMean", np.mean(episode_rewards))
+    #   print("EpRewStd", np.std(episode_rewards))
       logger.record_tabular("EpRewMean", np.mean(episode_rewards))
       logger.record_tabular("EpRewStd", np.std(episode_rewards))
+
+      # Log in Tensorboard
       summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = ep_rew_mean)])
       summary_writer.add_summary(summary, timesteps_so_far)
+
     total_episodes.append(episodes_solved)
     episodes_solved = 0
     print ("Average reward per episode {}".format(total_reward / self.episodes))

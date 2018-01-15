@@ -95,34 +95,52 @@ class PolicyEstimator():
             #     num_outputs=1,
             #     activation_fn=None,
             #     weights_initializer=tf.zeros_initializer)
-            # self.mu = tf.squeeze(self.mu)
+            #
+            # self.sigma = tf.contrib.layers.fully_connected(
+            #     inputs=tf.expand_dims(self.state, 0),
+            #     num_outputs=1,
+            #     activation_fn=None,
+            #     weights_initializer=tf.zeros_initializer)
 
             # Define mu as a 2-hidden layer NN
-            h1 = tf.contrib.layers.fully_connected(
+            h1_mu = tf.contrib.layers.fully_connected(
                 inputs=tf.expand_dims(self.state, 0),
                 num_outputs=64,
                 activation_fn=tf.nn.tanh,
                 weights_initializer=tf.zeros_initializer)
 
-            h2 = tf.contrib.layers.fully_connected(
-                inputs=h1,
+            h2_mu = tf.contrib.layers.fully_connected(
+                inputs=h1_mu,
                 num_outputs=64,
                 activation_fn=tf.nn.tanh,
                 weights_initializer=tf.zeros_initializer)
 
             self.mu = tf.contrib.layers.fully_connected(
-                inputs=h2,
-                num_outputs=64,
-                activation_fn=None,
-                weights_initializer=tf.zeros_initializer)
-
-            # TODO: continue with sigma
-            self.sigma = tf.contrib.layers.fully_connected(
-                inputs=tf.expand_dims(self.state, 0),
+                inputs=h2_mu,
                 num_outputs=1,
                 activation_fn=None,
                 weights_initializer=tf.zeros_initializer)
 
+            # Define sigma as a 2-hidden layer NN
+            h1_sigma = tf.contrib.layers.fully_connected(
+                inputs=tf.expand_dims(self.state, 0),
+                num_outputs=64,
+                activation_fn=tf.nn.tanh,
+                weights_initializer=tf.zeros_initializer)
+
+            h2_sigma = tf.contrib.layers.fully_connected(
+                inputs=h1_sigma,
+                num_outputs=64,
+                activation_fn=tf.nn.tanh,
+                weights_initializer=tf.zeros_initializer)
+
+            self.sigma = tf.contrib.layers.fully_connected(
+                inputs=h2_sigma,
+                num_outputs=1,
+                activation_fn=None,
+                weights_initializer=tf.zeros_initializer)
+
+            self.mu = tf.squeeze(self.mu)
             self.sigma = tf.squeeze(self.sigma)
             self.sigma = tf.nn.softplus(self.sigma) + 1e-5
 
@@ -162,9 +180,27 @@ class ValueEstimator():
             self.state = tf.placeholder(tf.float32, [400], "state")
             self.target = tf.placeholder(dtype=tf.float32, name="target")
 
-            # This is just linear classifier
-            self.output_layer = tf.contrib.layers.fully_connected(
+            # # This is just linear classifier
+            # self.output_layer = tf.contrib.layers.fully_connected(
+            #     inputs=tf.expand_dims(self.state, 0),
+            #     num_outputs=1,
+            #     activation_fn=None,
+            #     weights_initializer=tf.zeros_initializer)
+
+            h1_value = tf.contrib.layers.fully_connected(
                 inputs=tf.expand_dims(self.state, 0),
+                num_outputs=64,
+                activation_fn=tf.nn.tanh,
+                weights_initializer=tf.zeros_initializer)
+
+            h2_value = tf.contrib.layers.fully_connected(
+                inputs=h1_value,
+                num_outputs=64,
+                activation_fn=tf.nn.tanh,
+                weights_initializer=tf.zeros_initializer)
+
+            self.output_layer = tf.contrib.layers.fully_connected(
+                inputs=h2_value,
                 num_outputs=1,
                 activation_fn=None,
                 weights_initializer=tf.zeros_initializer)
@@ -363,19 +399,11 @@ def learn(env, estimator_policy, estimator_value,
 
             # Log the episode reward
             # episode_total_rew = stats.episode_rewards[num_episodes]
-            summary = tf.Summary(value=[tf.Summary.Value(tag="Episode Reward",
-                simple_value = episode_reward)])
+            summary = tf.Summary(value=[tf.Summary.Value(tag="Episode Reward", simple_value = episode_reward)])
             summary_writer.add_summary(summary, timestep)
-
-            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean",
-                simple_value = np.mean(rewards))])
+            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewards))])
             summary_writer.add_summary(summary, timestep)
-
             summary_writer.flush()
-
-
-            # Reset the environment and get firs state
-            state = env.reset()
 
             if print_freq is not None and num_episodes % print_freq == 0:
                 logger.record_tabular("steps", timestep)
@@ -383,6 +411,9 @@ def learn(env, estimator_policy, estimator_value,
                 logger.record_tabular("reward", episode_reward)
                 # logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()
+
+            # Reset the environment and get firs state
+            state = env.reset()
 
             # Iterate episodes
             num_episodes +=1

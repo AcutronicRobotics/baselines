@@ -12,7 +12,7 @@ Baselines is a fork of OpenAI's baselines repository with a set of high-quality 
 |[DQN+NAF](https://github.com/erlerobot/continuous-deep-q-learning) | **working** (requires Tensorflow `1.3.0`) | continuous | |
 |[PPO](baselines/ppo1) | **working** | continuous | [continuous](https://github.com/erlerobot/ros_rl/tree/master/examples/modular_scara_3dof_v3/train_ppo1.py) |
 |[TRPO](baselines/trpo_mpi) | **working** | continuous | |
-|[VPG](baselines/vpg) | **working** | continuous | [MountainCarContinuous](baselines/vpg/train_mountaincarcontinuous.py) |
+|[VPG](baselines/vpg) | **not working** | continuous | [MountainCarContinuous](baselines/vpg/train_mountaincarcontinuous.py) |
 
 
 ## Install

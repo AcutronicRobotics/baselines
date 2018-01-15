@@ -7,10 +7,10 @@ from baselines.common.distributions import make_pdtype
 class MlpPolicy(object):
     recurrent = False
     def __init__(self, name, *args, **kwargs):
-        print("name of the mlp is: ", name)
+        # print("name of the mlp is: ", name)
         with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
             self.scope = tf.get_variable_scope().name
-            print("calling MlpPolicy: ", self.scope)
+            # print("calling MlpPolicy: ", self.scope)
             self._init(*args, **kwargs)
 
     def _init(self, ob_space, ac_space, hid_size, num_hid_layers, gaussian_fixed_var=True):
