@@ -10,17 +10,17 @@ from baselines.common.misc_util import (
     set_global_seeds,
     boolean_flag,
 )
-# from src.naf import NAF
-# from src.network import Network
-# from src.statistic import Statistic
-# from src.exploration import OUExploration, BrownianExploration, LinearDecayExploration
+from baselines.deepqnaf.naf import NAF
+from baselines.deepqnaf.network import Network
+from baselines.deepqnaf.statistic import Statistic
+from baselines.deepqnaf.exploration import OUExploration, BrownianExploration, LinearDecayExploration
 
-from naf import NAF
-from network import Network
-from statistic import Statistic
-from exploration import OUExploration, BrownianExploration, LinearDecayExploration
+# from naf import NAF
+# from network import Network
+# from statistic import Statistic
+# from exploration import OUExploration, BrownianExploration, LinearDecayExploration
 
-from utils import get_model_dir, preprocess_conf
+from baselines.deepqnaf.utils import get_model_dir, preprocess_conf
 
 
 def learn (env,

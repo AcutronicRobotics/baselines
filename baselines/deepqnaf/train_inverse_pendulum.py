@@ -77,7 +77,7 @@ flags.DEFINE_string('noise', 'ou', 'type of noise exploration [ou, linear_decay,
 
 # training
 flags.DEFINE_float('tau', 0.001, 'tau of soft target update')
-flags.DEFINE_float('discount', 0.8, 'discount factor of Q-learning')
+flags.DEFINE_float('discount', 0.99, 'discount factor of Q-learning')
 flags.DEFINE_float('learning_rate', 1e-3, 'value of learning rate')
 flags.DEFINE_integer('batch_size', 100, 'The size of batch for minibatch training')
 flags.DEFINE_integer('max_steps', 200, 'maximum # of steps for each episode')

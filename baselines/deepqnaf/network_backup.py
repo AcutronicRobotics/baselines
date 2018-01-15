@@ -4,20 +4,15 @@ logger = getLogger(__name__)
 import tensorflow as tf
 from tensorflow.contrib.framework import get_variables
 
-#from ops import *
-from baselines.deepqnaf.ops import *
+from ops import *
 
 class Network:
   def __init__(self, sess, input_shape, action_size, hidden_dims,
                use_batch_norm, use_seperate_networks,
                hidden_w, action_w, hidden_fn, action_fn, w_reg,
                scope='NAF'):
-    hidden_dims = [64,64]
-    hidden_fn = tf.nn.tanh
-    action_fn = tf.nn.tanh
-    hidden_w =  tf.random_uniform_initializer(-0.05, 0.05)
-    action_w = tf.random_uniform_initializer(-0.05, 0.05)
-    w_reg = None
+
+
     self.sess = sess
     with tf.variable_scope(scope):
       x = tf.placeholder(tf.float32, (None,) + tuple(input_shape), name='observations')

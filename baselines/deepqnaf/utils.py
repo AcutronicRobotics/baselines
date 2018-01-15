@@ -5,7 +5,7 @@ import pprint
 import tensorflow as tf
 
 #from network import *
-from network import *
+from baselines.deepqnaf.network import *
 pp = pprint.PrettyPrinter().pprint
 
 def get_model_dir(config, exceptions=None):
