@@ -7,6 +7,7 @@ from baselines.common.misc_util import (
     set_global_seeds,
     boolean_flag,
 )
+
 from .naf import NAF
 from .network import Network
 from .statistic import Statistic
@@ -18,8 +19,8 @@ def learn(env,
             sess,
             noise = 'ou',
             noise_scale = 0.2,
-            hidden_dims = [100,100],
-            use_batch_norm = True,
+            hidden_dims = [64,64],
+            use_batch_norm = False,
             use_seperate_networks = False,
             hidden_w = tf.random_uniform_initializer(-0.05, 0.05),
             action_w = tf.random_uniform_initializer(-0.05, 0.05),

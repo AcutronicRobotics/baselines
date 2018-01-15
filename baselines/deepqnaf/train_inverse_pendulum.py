@@ -14,11 +14,11 @@ from baselines.common.misc_util import (
 # from src.statistic import Statistic
 # from src.exploration import OUExploration, BrownianExploration, LinearDecayExploration
 # from src.learn import learn
-from naf import  NAF
-from network import Network
-from statistic import Statistic
-from exploration import OUExploration, BrownianExploration, LinearDecayExploration
-from learn import learn
+from baselines.deepqnaf.naf import  NAF
+from baselines.deepqnaf.network import Network
+from baselines.deepqnaf.statistic import Statistic
+from baselines.deepqnaf.exploration import OUExploration, BrownianExploration, LinearDecayExploration
+from baselines.deepqnaf.learn import learn
 # import ops
 from utils import get_model_dir, preprocess_conf
 
@@ -57,7 +57,7 @@ from utils import get_model_dir, preprocess_conf
 # gym.logger.setLevel(logging.WARN)
 flags = tf.app.flags
 # environment
-flags.DEFINE_string('env_name', 'GazeboModularScara3DOF-v3', 'name of environment')
+flags.DEFINE_string('env_name', 'GazeboModularScara4DOF-v3', 'name of environment')
 
 # network
 flags.DEFINE_string('hidden_dims', '[100, 100]', 'dimension of hidden layers')
@@ -77,7 +77,7 @@ flags.DEFINE_string('noise', 'ou', 'type of noise exploration [ou, linear_decay,
 
 # training
 flags.DEFINE_float('tau', 0.001, 'tau of soft target update')
-flags.DEFINE_float('discount', 0.8, 'discount factor of Q-learning')
+flags.DEFINE_float('discount', 0.99, 'discount factor of Q-learning')
 flags.DEFINE_float('learning_rate', 1e-3, 'value of learning rate')
 flags.DEFINE_integer('batch_size', 100, 'The size of batch for minibatch training')
 flags.DEFINE_integer('max_steps', 200, 'maximum # of steps for each episode')
@@ -94,26 +94,40 @@ flags.DEFINE_string('log_level', 'INFO', 'log level [DEBUG, INFO, WARNING, ERROR
 conf = flags.FLAGS
 #    ['is_train', 'random_seed', 'monitor', 'display', 'log_level'])
 preprocess_conf(conf)
-env = 'GazeboModularScara3DOF-v3'
-learn (env,
-            conf.noise,
-            conf.noise_scale,
-            conf.hidden_dims,
-            conf.use_batch_norm,
-            conf.use_seperate_networks,
-            conf.hidden_w,
-            conf.action_w,
-            conf.hidden_fn,
-            conf.action_fn,
-            conf.w_reg,
-            conf.clip_action,
-            conf.tau,
-            conf.discount,
-            conf.learning_rate,
-            conf.batch_size,
-            conf.max_steps,
-            conf.update_repeat,
-            conf.max_episodes)
+env = 'GazeboModularScara4DOF-v3'
+
+# set random seed
+tf.set_random_seed(123)
+np.random.seed(123)
+
+
+with tf.Session() as sess:
+    # environment
+    env = gym.make(env)
+    env._seed(123)
+    # learn (env,
+    #         sess,
+    #         conf.noise,
+    #         conf.noise_scale,
+    #         conf.hidden_dims,
+    #         conf.use_batch_norm,
+    #         conf.use_seperate_networks,
+    #         conf.hidden_w,
+    #         conf.action_w,
+    #         conf.hidden_fn,
+    #         conf.action_fn,
+    #         conf.w_reg,
+    #         conf.clip_action,
+    #         conf.tau,
+    #         conf.discount,
+    #         conf.learning_rate,
+    #         conf.batch_size,
+    #         conf.max_steps,
+    #         conf.update_repeat,
+    #         conf.max_episodes)
+
+    learn (env,
+            sess)
 
 if __name__ == '__main__':
   tf.app.run()

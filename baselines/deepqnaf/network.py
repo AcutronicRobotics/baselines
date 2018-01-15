@@ -3,6 +3,7 @@ logger = getLogger(__name__)
 
 import tensorflow as tf
 from tensorflow.contrib.framework import get_variables
+
 from .ops import *
 
 class Network:
@@ -13,12 +14,13 @@ class Network:
                 hidden_fn, action_fn,
                 w_reg,
                 scope='NAF'):
-    # hidden_dims = [100,100]
-    # hidden_fn = tf.nn.tanh
-    # action_fn = tf.nn.tanh
-    # hidden_w =  tf.random_uniform_initializer(-0.05, 0.05)
-    # action_w = tf.random_uniform_initializer(-0.05, 0.05)
-    # w_reg = None
+    hidden_dims = [100,100]
+    hidden_fn = tf.nn.tanh
+    action_fn = tf.nn.tanh
+    hidden_w =  tf.random_uniform_initializer(-0.05, 0.05)
+    action_w = tf.random_uniform_initializer(-0.05, 0.05)
+    w_reg = None
+
     self.sess = sess
     with tf.variable_scope(scope):
       x = tf.placeholder(tf.float32, (None,) + tuple(input_shape), name='observations')
