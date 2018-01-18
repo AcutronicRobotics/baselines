@@ -87,9 +87,14 @@ def plot_results(plot_name, all_values, labels, smooth=True):
         y_lower = y_mean - y_std
 
         # f2 = interp1d(y_upper, y_upper, kind='cubic')
-        plt.fill_between(
-            x, list(y_lower), list(y_upper), interpolate=True, facecolor=color, linewidth=0.0, alpha=0.3
-        )
+        if i is 3:
+            plt.fill_between(
+                x, list(y_lower), list(y_upper), interpolate=True, facecolor=color, linewidth=0.0, alpha=0.1
+            )
+        else:
+            plt.fill_between(
+                x, list(y_lower), list(y_upper), interpolate=True, facecolor=color, linewidth=0.0, alpha=0.4
+            )
 
         line = plt.plot(x, list(y_mean), color=color, rasterized=False, antialiased=True)
 
@@ -98,7 +103,7 @@ def plot_results(plot_name, all_values, labels, smooth=True):
 
     plt.legend(lines, names, loc=4)
     plt.xlim([0,1000000])
-    plt.ylim([-400,100])
+    plt.ylim([-300,100])
     plt.xlabel("Number of Timesteps")
     plt.ylabel("Mean Episode Reward")
     plt.title(plot_name)
@@ -107,24 +112,35 @@ def plot_results(plot_name, all_values, labels, smooth=True):
 # env_ids = ["invertedpendulum", "inverteddoublependulum", "reacher", "hopper",\
 #             "halfcheetah", "walker2d", "swimmer", "ant"]
 plot_names = ["Scara 3DoF", "Scara 3DoF"]
-plot_name = "Scara 3DoF"
+plot_name = "Scara 4DoF"
 
 # plt.figure(figsize=(20,10))
 # columns = 4
 # i = 0
 # for plot_name in plot_names:
 datas = []
-datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_max_step/ppo1/monitor/progress.csv")
-datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_max_step/ppo2/progress.csv")
-datas.append("/home/rkojcev/baselines_networks/paper/data/GazeboModularScara3DOFv3Env_max_step/acktr/monitor/progress.csv")
 
-# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/deepq/default_hyperpar/progress_max_episode_step_1000.csv")
-datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/final_results/progress_ddpg_g_0_99.csv")
-datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/final_results/progress_deepq_naf_3dof.csv")
+#plot everything
+datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/ppo1/1000000_nsec/progress.csv")
+datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/ppo2/1000000_nsec/progress.csv")
+datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/acktr/1000000_nsec/progress.csv")
+datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/ddpg/progress_ddpg_g_0_99_4dof.csv")
+datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/deepqnaf/progress.csv")
+# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara3DOFv3Env/ppo1/1_sec/progress.csv")
+# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara3DOFv3Env/ppo1/100000000_nsec/progress.csv")
+# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara3DOFv3Env/ppo1/10000000_nsec/progress.csv")
+#
+# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/ddpg/progress_ddpg_g_0_99_4dof.csv")
+# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara3DOFv3Env/ppo1/1000000_nsec/progress.csv")
+
+# # datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/deepq/default_hyperpar/progress_max_episode_step_1000.csv")
+# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/ddpg/progress_ddpg_g_0_99_4dof.csv")
+# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/deepqnaf/progress.csv")
 
 #Articulated arm
 # datas.append("/tmp/rosrl/GazeboModularArticulatedArm4DOFv1Env/ppo2/progress.csv")
 
+# labels = ["PPO1 (1s)", "PPO1 (100ms)","PPO1 (10ms)", "PPO1 (1ms)"] #"ACKTR",
 labels = ["PPO1", "PPO2","ACKTR", "DDPG", "NAF"] #"ACKTR",
 # labels = [ "DDPG (gamma=0.8)", "DDPG (gamma=0.99)"] #"ACKTR",
 plot_results(plot_name, datas, labels, smooth=True)

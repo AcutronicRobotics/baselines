@@ -148,8 +148,9 @@ def learn(env, policy_func, *,
         Here we add a possibility to resume from a previously saved model if a model file is provided
         """
         if restore_model_from_file:
-            saver = tf.train.Saver(tf.all_variables(), reshape=True)
-            saver.restore(tf.get_default_session(), restore_model_from_file)
+            # saver = tf.train.Saver(tf.all_variables())
+            saver = tf.train.import_meta_graph(restore_model_from_file)
+            saver.restore(tf.get_default_session(), tf.train.latest_checkpoint('./'))#restore_model_from_file)
             logger.log("Loaded model from {}".format(restore_model_from_file))
 
         # Prepare for rollouts
