@@ -153,4 +153,8 @@ def test_monitor():
     last_logline = pandas.read_csv(f, index_col=None)
     assert set(last_logline.keys()) == {'l', 't', 'r'}, "Incorrect keys in monitor logline"
     f.close()
+<<<<<<< HEAD
     os.remove(mon_file)
+=======
+    os.remove(mon_file)
+>>>>>>> 452b548... Merge branch 'master' into patch-1

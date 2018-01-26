@@ -135,14 +135,6 @@ class MlpPolicy(object):
         actdim = ac_space.shape[0]
         X = tf.placeholder(tf.float32, ob_shape, name='Ob') #obs
         with tf.variable_scope("model", reuse=reuse):
-<<<<<<< HEAD
-            h1 = fc(X, 'pi_fc1', nh=64, init_scale=np.sqrt(2), act=tf.tanh)
-            h2 = fc(h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2), act=tf.tanh)
-            pi = fc(h2, 'pi', actdim, act=lambda x:x, init_scale=0.01)
-            h1 = fc(X, 'vf_fc1', nh=64, init_scale=np.sqrt(2), act=tf.tanh)
-            h2 = fc(h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2), act=tf.tanh)
-            vf = fc(h2, 'vf', 1, act=lambda x:x)[:,0]
-=======
             activ = tf.tanh
             h1 = activ(fc(X, 'pi_fc1', nh=64, init_scale=np.sqrt(2)))
             h2 = activ(fc(h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2)))
@@ -150,7 +142,6 @@ class MlpPolicy(object):
             h1 = activ(fc(X, 'vf_fc1', nh=64, init_scale=np.sqrt(2)))
             h2 = activ(fc(h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2)))
             vf = fc(h2, 'vf', 1)[:,0]
->>>>>>> 9fa8e1b... Lots of cleanups
             logstd = tf.get_variable(name="logstd", shape=[1, actdim],
                 initializer=tf.zeros_initializer())
 
