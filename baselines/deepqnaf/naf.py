@@ -6,7 +6,9 @@ import gym
 from baselines import logger, bench
 import numpy as np
 import tensorflow as tf
+from collections import deque
 from tensorflow.contrib.framework import get_variables
+
 from .utils_time import get_timestamp
 
 class NAF(object):
@@ -66,28 +68,32 @@ class NAF(object):
             allow_early_resets=True, robotics=False)
     gym.logger.setLevel(logging.WARN)
 
+
+    summary_writer_ep_mean = tf.summary.FileWriter('/tmp/rosrl/' + str(self.env.__class__.__name__) +'/deepq_naf/tensorboard/ep_mean/', graph=tf.get_default_graph())
+    summary_writer_ep_mean_100 = tf.summary.FileWriter('/tmp/rosrl/' + str(self.env.__class__.__name__) +'/deepq_naf/tensorboard/ep_mean_100/', graph=tf.get_default_graph())
+
     # Create the tensorboard writer
     summary_writer = tf.summary.FileWriter(self.outdir, graph=tf.get_default_graph())
+
     #if monitor:
       #self.env.monitor.start('/tmp/%s-%s' % (self.stat.env_name, get_timestamp()))
     init = tf.global_variables_initializer() ###
     self.sess.run(init) ###
     episode_rewards = []
+    episode_rewards_100 = deque(maxlen=100)
     episodes_solved = 0
     it = 0
     display = False
 
     for self.idx_episode in range(self.max_episodes):
           print("Episode", self.idx_episode)
-
-          state = self.env.reset()
-
+          state = env.reset()
           #for t in xrange(0, self.max_steps):
           episode_reward = 0
           episodes_solved = 0
 
           for t in range(0, self.max_steps):
-            it = it + 1
+            #it = it + 1
             if display: self.env.render()
 
             # 1. predict
@@ -108,7 +114,9 @@ class NAF(object):
             # 3. perceive
             # TODO: Nora, please include the update_repeat=5 in the loop
             if is_train:
-              q, v, a, l = self.perceive(state, reward, action, terminal)
+
+              #q, v, a, l, it = self.perceive(state, reward, action, terminal, it)
+              q, v, a, l, it = self.perceive(state, reward, action, terminal, it, episode_rewards, episode_rewards_100)
 
               #if self.stat:
                 #self.stat.on_step(action, reward, terminal, q, v, a, l)
@@ -116,24 +124,31 @@ class NAF(object):
             if terminal:
                 # print("Episode_reward", episode_reward)
                 episode_rewards.append(episode_reward)
+                episode_rewards_100.append(episode_reward)
+                ep_rew_mean = np.mean(episode_rewards)
+                ep_rew_mean_100 = np.mean(episode_rewards_100)
+                # print("EpRewMean", np.mean(episode_rewards))
+                # print("EpRewStd", np.std(episode_rewards))
+                # logger.info("REWARDS")
+                # logger.record_tabular("EpRewMean", np.mean(episode_rewards))
+                # logger.record_tabular("EpRewStd", np.std(episode_rewards))
+                # logger.record_tabular("TimestepsSoFar", it)
+                # logger.dump_tabular()
+                # # Create the writer for TensorBoard logs
+                # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = ep_rew_mean)])
+                # print("It tensorboard", it)
+                # summary_writer.add_summary(summary, it)
+                summary_ep_mean = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = ep_rew_mean)])
+                summary_writer_ep_mean.add_summary(summary_ep_mean, it)
+                summary_writer_ep_mean.flush()
+                summary_ep_mean_100 = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean100", simple_value = ep_rew_mean_100)])
+                summary_writer_ep_mean_100.add_summary(summary_ep_mean_100, it)
+                summary_writer_ep_mean_100.flush()
                 episode_reward = 0
                 episodes_solved +=1
                 observation = self.env.reset()
-              #self.strategy.reset()
+                self.strategy.reset()
               #break
-          ep_rew_mean = np.mean(episode_rewards)
-        #   print("EpRewMean", np.mean(episode_rewards))
-        #   print("EpRewStd", np.std(episode_rewards))
-        #   logger.info("REWARDS")
-          logger.record_tabular("EpRewMean", np.mean(episode_rewards))
-          logger.record_tabular("EpRewStd", np.std(episode_rewards))
-          logger.record_tabular("TimeStepsSoFar", it)
-          logger.dump_tabular()
-
-          # Create the writer for TensorBoard logs
-          summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = ep_rew_mean)])
-          summary_writer.add_summary(summary, it)
-          summary_writer.flush()
 
     #if monitor:
       #self.env.monitor.close()
@@ -163,9 +178,10 @@ class NAF(object):
 
     for i_episode in range(self.max_episodes):
 
+
       # Create the writer for TensorBoard logs
-      summary_writer = tf.summary.FileWriter(self.outdir, graph=tf.get_default_graph())
-      #   print("\nOUTDIR", outdir)
+      summary_writer_ep_mean = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
+      summary_writer_ep_mean_100 = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
 
       observation = self.env.reset()
       episode_reward = 0
@@ -234,13 +250,17 @@ class NAF(object):
 
     return self.strategy.add_noise(u, {'idx_episode': self.idx_episode})
 
-  def perceive(self, state, reward, action, terminal):
+  #def perceive(self, state, reward, action, terminal, it):
+  def perceive(self, state, reward, action, terminal, it, episode_rewards, episode_rewards_100):
     self.rewards.append(reward)
     self.actions.append(action)
 
-    return self.q_learning_minibatch()
+    #return self.q_learning_minibatch(it)
+    return self.q_learning_minibatch(it, episode_rewards, episode_rewards_100)
 
-  def q_learning_minibatch(self):
+
+  #def q_learning_minibatch(self, it):
+  def q_learning_minibatch(self, it, episode_rewards, episode_rewards_100):
     q_list = []
     v_list = []
     a_list = []
@@ -248,6 +268,17 @@ class NAF(object):
 
     #for iteration in xrange(self.update_repeat):
     for iteration in range(self.update_repeat):
+
+      it = it + 1
+      if len(episode_rewards) > 0:
+          logger.record_tabular("EpRewMean", np.mean(episode_rewards))
+          logger.record_tabular("EpRewStd", np.std(episode_rewards))
+          logger.record_tabular("EpRewMean100", np.mean(episode_rewards_100))
+          logger.record_tabular("EpRewStd100", np.std(episode_rewards_100))
+          logger.record_tabular("TimestepsSoFar", it)
+          logger.dump_tabular()
+
+
       if len(self.rewards) >= self.batch_size:
         indexes = np.random.choice(len(self.rewards), size=self.batch_size)
       else:
@@ -281,4 +312,4 @@ class NAF(object):
       logger.debug("q: %s, v: %s, a: %s, l: %s" \
         % (np.mean(q), np.mean(v), np.mean(a), np.mean(l)))
 
-    return np.sum(q_list), np.sum(v_list), np.sum(a_list), np.sum(l_list)
+    return np.sum(q_list), np.sum(v_list), np.sum(a_list), np.sum(l_list), it
