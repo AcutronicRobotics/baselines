@@ -86,7 +86,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
-def learn(env, policy_func, *,
+def learn(env, policy_fn, *,
         timesteps_per_actorbatch, # timesteps per actor per update
         clip_param, entcoeff, # clipping parameter epsilon, entropy coeff
         optim_epochs, optim_stepsize, optim_batchsize,# optimization hypers
@@ -106,11 +106,46 @@ def learn(env, policy_func, *,
     # ----------------------------------------
     ob_space = env.observation_space
     ac_space = env.action_space
-    with tf.Session(config=tf.ConfigProto()) as session:
-        pi = policy_func("pi", ob_space, ac_space) # Construct network for new policy
-        oldpi = policy_func("oldpi", ob_space, ac_space) # Network for old policy
-        atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
-        ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
+    pi = policy_fn("pi", ob_space, ac_space) # Construct network for new policy
+    oldpi = policy_fn("oldpi", ob_space, ac_space) # Network for old policy
+    atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
+    ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
+
+    lrmult = tf.placeholder(name='lrmult', dtype=tf.float32, shape=[]) # learning rate multiplier, updated with schedule
+    clip_param = clip_param * lrmult # Annealed cliping parameter epislon
+
+    ob = U.get_placeholder_cached(name="ob")
+    ac = pi.pdtype.sample_placeholder([None])
+
+    kloldnew = oldpi.pd.kl(pi.pd)
+    ent = pi.pd.entropy()
+    meankl = tf.reduce_mean(kloldnew)
+    meanent = tf.reduce_mean(ent)
+    pol_entpen = (-entcoeff) * meanent
+
+    ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac)) # pnew / pold
+    surr1 = ratio * atarg # surrogate from conservative policy iteration
+    surr2 = tf.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg #
+    pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2)) # PPO's pessimistic surrogate (L^CLIP)
+    vf_loss = tf.reduce_mean(tf.square(pi.vpred - ret))
+    total_loss = pol_surr + pol_entpen + vf_loss
+    losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
+    loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
+
+    var_list = pi.get_trainable_variables()
+    lossandgrad = U.function([ob, ac, atarg, ret, lrmult], losses + [U.flatgrad(total_loss, var_list)])
+    adam = MpiAdam(var_list, epsilon=adam_epsilon)
+
+    assign_old_eq_new = U.function([],[], updates=[tf.assign(oldv, newv)
+        for (oldv, newv) in zipsame(oldpi.get_variables(), pi.get_variables())])
+    compute_losses = U.function([ob, ac, atarg, ret, lrmult], losses)
+
+    U.initialize()
+    adam.sync()
+
+    # Prepare for rollouts
+    # ----------------------------------------
+    seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic=True)
 
         lrmult = tf.placeholder(name='lrmult', dtype=tf.float32, shape=[]) # learning rate multiplier, updated with schedule
         clip_param = clip_param * lrmult # Annealed cliping parameter epislon
@@ -222,68 +257,37 @@ def learn(env, policy_func, *,
             logger.log("Evaluating losses...")
             losses = []
             for batch in d.iterate_once(optim_batchsize):
-                newlosses = compute_losses(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
+                *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
+                adam.update(g, optim_stepsize * cur_lrmult)
                 losses.append(newlosses)
-            meanlosses,_,_ = mpi_moments(losses, axis=0)
-            logger.log(fmt_row(13, meanlosses))
-            for (lossval, name) in zipsame(meanlosses, loss_names):
-                logger.record_tabular("loss_"+name, lossval)
-            logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
-            lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
-            listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
-            lens, rews = map(flatten_lists, zip(*listoflrpairs))
-            lenbuffer.extend(lens)
-            rewbuffer.extend(rews)
-            logger.record_tabular("EpLenMean", safemean(lenbuffer))
-            logger.record_tabular("EpRewMean", safemean(rewbuffer))
-            logger.record_tabular("EpRewSEM", safestd(rewbuffer))
-            logger.record_tabular("EpThisIter", len(lens))
+            logger.log(fmt_row(13, np.mean(losses, axis=0)))
 
-            print("Len(lenbuffer)", len(lenbuffer) )
-            print("Len(EpRewMean)", len(rewbuffer))
-            episodes_so_far += len(lens)
-            timesteps_so_far += sum(lens)
-
-            """
-            Save the model at every itteration
-            """
-            if save_model_with_prefix:
-                if np.mean(rewbuffer) > -50.0:
-                    # if job_id is not None:
-                    #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
-                    # else:
-                    #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
-                    basePath = outdir+"/models/"
-
-                    if not os.path.exists(basePath):
-                        os.makedirs(basePath)
-                    modelF= basePath +save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
-                    U.save_state(modelF)
-                    logger.log("Saved model to file :{}".format(modelF))
-
-            iters_so_far += 1
-            logger.record_tabular("EpisodesSoFar", episodes_so_far)
-            logger.record_tabular("TimestepsSoFar", timesteps_so_far)
-            logger.record_tabular("TimeElapsed", time.time() - tstart)
-            if MPI.COMM_WORLD.Get_rank()==0:
-                logger.dump_tabular()
-
-            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-            summary_writer.add_summary(summary, timesteps_so_far)
-
-
-    # U.get_session().close()
-    # # U.reset()
-    # # tf.reset_default_graph()
-    # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-    # summary_writer.add_summary(summary, iters_so_far)
-    return np.mean(rewbuffer)
-
-def safemean(xs):
-    return np.nan if len(xs) == 0 else np.mean(xs)
-
-def safestd(xs):
-    return np.nan if len(xs) == 0 else np.std(xs)
+        logger.log("Evaluating losses...")
+        losses = []
+        for batch in d.iterate_once(optim_batchsize):
+            newlosses = compute_losses(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
+            losses.append(newlosses)
+        meanlosses,_,_ = mpi_moments(losses, axis=0)
+        logger.log(fmt_row(13, meanlosses))
+        for (lossval, name) in zipsame(meanlosses, loss_names):
+            logger.record_tabular("loss_"+name, lossval)
+        logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
+        lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
+        listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
+        lens, rews = map(flatten_lists, zip(*listoflrpairs))
+        lenbuffer.extend(lens)
+        rewbuffer.extend(rews)
+        logger.record_tabular("EpLenMean", np.mean(lenbuffer))
+        logger.record_tabular("EpRewMean", np.mean(rewbuffer))
+        logger.record_tabular("EpThisIter", len(lens))
+        episodes_so_far += len(lens)
+        timesteps_so_far += sum(lens)
+        iters_so_far += 1
+        logger.record_tabular("EpisodesSoFar", episodes_so_far)
+        logger.record_tabular("TimestepsSoFar", timesteps_so_far)
+        logger.record_tabular("TimeElapsed", time.time() - tstart)
+        if MPI.COMM_WORLD.Get_rank()==0:
+            logger.dump_tabular()
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]

@@ -9,8 +9,7 @@ from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
 import baselines.common.tf_util as U
 from baselines.common.mpi_running_mean_std import RunningMeanStd
-from baselines.ddpg.util import reduce_std, mpi_mean
-
+from mpi4py import MPI
 
 def normalize(x, stats):
     if stats is None:
@@ -23,6 +22,13 @@ def denormalize(x, stats):
         return x
     return x * stats.std + stats.mean
 
+def reduce_std(x, axis=None, keepdims=False):
+    return tf.sqrt(reduce_var(x, axis=axis, keepdims=keepdims))
+
+def reduce_var(x, axis=None, keepdims=False):
+    m = tf.reduce_mean(x, axis=axis, keep_dims=True)
+    devs_squared = tf.square(x - m)
+    return tf.reduce_mean(devs_squared, axis=axis, keep_dims=keepdims)
 
 def get_target_updates(vars, target_vars, tau):
     logger.info('setting up target updates ...')
@@ -361,7 +367,7 @@ class DDPG(object):
             self.param_noise_stddev: self.param_noise.current_stddev,
         })
 
-        mean_distance = mpi_mean(distance)
+        mean_distance = MPI.COMM_WORLD.allreduce(distance, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
         self.param_noise.adapt(mean_distance)
         return mean_distance
 

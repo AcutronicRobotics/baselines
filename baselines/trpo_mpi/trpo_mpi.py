@@ -80,7 +80,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
-def learn(env, policy_func, *,
+def learn(env, policy_fn, *,
         timesteps_per_batch, # what to train on
         max_kl, cg_iters,
         gamma, lam, # advantage estimation
@@ -100,8 +100,8 @@ def learn(env, policy_func, *,
     # ----------------------------------------
     ob_space = env.observation_space
     ac_space = env.action_space
-    pi = policy_func("pi", ob_space, ac_space)
-    oldpi = policy_func("oldpi", ob_space, ac_space)
+    pi = policy_fn("pi", ob_space, ac_space)
+    oldpi = policy_fn("oldpi", ob_space, ac_space)
     atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
 
@@ -110,14 +110,14 @@ def learn(env, policy_func, *,
 
     kloldnew = oldpi.pd.kl(pi.pd)
     ent = pi.pd.entropy()
-    meankl = U.mean(kloldnew)
-    meanent = U.mean(ent)
+    meankl = tf.reduce_mean(kloldnew)
+    meanent = tf.reduce_mean(ent)
     entbonus = entcoeff * meanent
 
-    vferr = U.mean(tf.square(pi.vpred - ret))
+    vferr = tf.reduce_mean(tf.square(pi.vpred - ret))
 
     ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac)) # advantage * pnew / pold
-    surrgain = U.mean(ratio * atarg)
+    surrgain = tf.reduce_mean(ratio * atarg)
 
     optimgain = surrgain + entbonus
     losses = [optimgain, meankl, entbonus, surrgain, meanent]
@@ -141,7 +141,7 @@ def learn(env, policy_func, *,
         sz = U.intprod(shape)
         tangents.append(tf.reshape(flat_tangent[start:start+sz], shape))
         start += sz
-    gvp = tf.add_n([U.sum(g*tangent) for (g, tangent) in zipsame(klgrads, tangents)]) #pylint: disable=E1111
+    gvp = tf.add_n([tf.reduce_sum(g*tangent) for (g, tangent) in zipsame(klgrads, tangents)]) #pylint: disable=E1111
     fvp = U.flatgrad(gvp, var_list)
 
     assign_old_eq_new = U.function([],[], updates=[tf.assign(oldv, newv)
@@ -187,15 +187,6 @@ def learn(env, policy_func, *,
     rewbuffer = deque(maxlen=40) # rolling buffer for episode rewards
 
     assert sum([max_iters>0, max_timesteps>0, max_episodes>0])==1
-
-    if save_model_with_prefix:
-        basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/trpo/'
-        # summary_writer = tf.summary.FileWriter(basePath, graph=tf.get_default_graph())
-
-    # Create the writer for TensorBoard logs
-    summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
-
-
 
     while True:
         if callback: callback(locals(), globals())
