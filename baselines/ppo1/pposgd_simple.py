@@ -277,17 +277,47 @@ def learn(env, policy_fn, *,
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
-        logger.record_tabular("EpLenMean", np.mean(lenbuffer))
-        logger.record_tabular("EpRewMean", np.mean(rewbuffer))
+        logger.record_tabular("EpLenMean", safemean(lenbuffer))
+        logger.record_tabular("EpRewMean", safemean(rewbuffer))
+        logger.record_tabular("EpRewSEM", safestd(rewbuffer))
         logger.record_tabular("EpThisIter", len(lens))
+        
         episodes_so_far += len(lens)
         timesteps_so_far += sum(lens)
+
+        """
+        Save the model at every itteration
+        """
+        if save_model_with_prefix:
+            if np.mean(rewbuffer) > -50.0:
+                # if job_id is not None:
+                #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'+job_id
+                # else:
+                #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo1/'
+                basePath = outdir+"/models/"
+
+                if not os.path.exists(basePath):
+                    os.makedirs(basePath)
+                modelF= basePath +save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
+                U.save_state(modelF)
+                logger.log("Saved model to file :{}".format(modelF))
+
         iters_so_far += 1
         logger.record_tabular("EpisodesSoFar", episodes_so_far)
         logger.record_tabular("TimestepsSoFar", timesteps_so_far)
         logger.record_tabular("TimeElapsed", time.time() - tstart)
         if MPI.COMM_WORLD.Get_rank()==0:
             logger.dump_tabular()
+
+        summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+        summary_writer.add_summary(summary, timesteps_so_far)
+
+    return np.mean(rewbuffer)
+def safemean(xs):
+    return np.nan if len(xs) == 0 else np.mean(xs)
+
+def safestd(xs):
+    return np.nan if len(xs) == 0 else np.std(xs)
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]
