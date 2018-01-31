@@ -161,12 +161,22 @@ class MlpPolicy(object):
         def value(ob, *_args, **_kwargs):
             return sess.run(vf, {X:ob})
 
+        # def get_act(ob, *_args, **_kwargs):
+        #     a = sess.run(a0, {X:ob})
+        #     return a
+        #
+        # def get_mean(ob, *_args, **_kwargs):
+        #      a = sess.run(pi, {X:ob})
+        #      return a, self.initial_state
+        #
         self.X = X
         self.pi = pi
         self.vf = vf
         self.step = step
         self.value = value
-        
+        #  self.act = get_act
+        #  self.mean = get_mean
+
 class LstmMlpPolicy(object):
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=32, reuse=False):
         nenv = nbatch // nsteps
