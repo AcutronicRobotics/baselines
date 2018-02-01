@@ -58,12 +58,13 @@ def plot_results(plot_name, all_values, labels, smooth=True):
         #     color = color_defaults[i]
         # else:
         #     color = color_defaults[i+1]
-        if i > 2 and i < 5:
-            y_mean = np.asarray(list(map(float,columns['EpRewMean100'])))
-            y_std = np.asarray(list(map(float,columns['EpRewMean100'])))
-        else:
-            y_mean = np.asarray(list(map(float,columns['EpRewMean'])))
-            y_std = np.asarray(list(map(float,columns['EpRewSEM'])))
+        # if i > 2 and i < 5:
+        #     y_mean = np.asarray(list(map(float,columns['EpRewMean100'])))
+        #     y_std = np.asarray(list(map(float,columns['EpRewMean100'])))
+        # else:
+        y_mean = np.asarray(list(map(float,columns['EpRewMean'])))
+        # y_std = np.asarray(list(map(float,columns['EpRewSEM'])))
+        y_std = np.std(y_mean)
         # print("before clean size mean: ", y_mean.size)
         # print("before clean size std: ", y_std.size)
         # # y_mean = [x for x in y_mean if y_mean is not NaN]
@@ -74,7 +75,7 @@ def plot_results(plot_name, all_values, labels, smooth=True):
         # print("after clean size std: ", y_std.size)
 
         # x = np.asarray(list(map(float, columns['EVAfter'])))
-        x = np.linspace(0, 1e6, y_std.size, endpoint=True)
+        x = np.linspace(0, 1e6, y_mean.size, endpoint=True)
 
         if smooth is True:
             y_mean = savgol_filter(y_mean, 11, 3)
@@ -112,7 +113,7 @@ def plot_results(plot_name, all_values, labels, smooth=True):
 # env_ids = ["invertedpendulum", "inverteddoublependulum", "reacher", "hopper",\
 #             "halfcheetah", "walker2d", "swimmer", "ant"]
 plot_names = ["Scara 3DoF", "Scara 3DoF"]
-plot_name = "Scara 4DoF"
+plot_name = "Scara 3DoF"
 
 # plt.figure(figsize=(20,10))
 # columns = 4
@@ -121,11 +122,11 @@ plot_name = "Scara 4DoF"
 datas = []
 
 #plot everything
-datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/ppo1/1000000_nsec/progress.csv")
-datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/ppo2/1000000_nsec/progress.csv")
-datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/acktr/1000000_nsec/progress.csv")
-datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/ddpg/progress_ddpg_g_0_99_4dof.csv")
-datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/deepqnaf/progress.csv")
+datas.append("/home/rkojcev/Downloads/progress_1.csv")
+datas.append("/home/rkojcev/Downloads/progress_2.csv")
+# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/acktr/1000000_nsec/progress.csv")
+# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/ddpg/progress_ddpg_g_0_99_4dof.csv")
+# datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/deepqnaf/progress.csv")
 # datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara3DOFv3Env/ppo1/1_sec/progress.csv")
 # datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara3DOFv3Env/ppo1/100000000_nsec/progress.csv")
 # datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara3DOFv3Env/ppo1/10000000_nsec/progress.csv")
