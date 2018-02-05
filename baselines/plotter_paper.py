@@ -63,8 +63,8 @@ def plot_results(plot_name, all_values, labels, smooth=True):
         #     y_std = np.asarray(list(map(float,columns['EpRewMean100'])))
         # else:
         y_mean = np.asarray(list(map(float,columns['EpRewMean'])))
-        # y_std = np.asarray(list(map(float,columns['EpRewSEM'])))
-        y_std = np.std(y_mean)
+        y_std = np.asarray(list(map(float,columns['EpRewSEM'])))
+        # y_std = np.std(y_mean)
         # print("before clean size mean: ", y_mean.size)
         # print("before clean size std: ", y_std.size)
         # # y_mean = [x for x in y_mean if y_mean is not NaN]
@@ -122,8 +122,8 @@ plot_name = "Scara 3DoF"
 datas = []
 
 #plot everything
-datas.append("/home/rkojcev/Downloads/progress_1.csv")
-datas.append("/home/rkojcev/Downloads/progress_2.csv")
+datas.append("/home/rkojcev/Downloads/progress_new.csv")
+# datas.append("/home/rkojcev/Downloads/progress_2.csv")
 # datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/acktr/1000000_nsec/progress.csv")
 # datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/ddpg/progress_ddpg_g_0_99_4dof.csv")
 # datas.append("/home/rkojcev/baselines_networks/paper/data/paper_experiments/GazeboModularScara4DOFv3Env/deepqnaf/progress.csv")
