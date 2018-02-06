@@ -7,16 +7,12 @@ from baselines.common.distributions import make_pdtype
 class MlpPolicy(object):
     recurrent = False
     def __init__(self, name, *args, **kwargs):
-        # print("name of the mlp is: ", name)
-        with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
-            self.scope = tf.get_variable_scope().name
-            # print("calling MlpPolicy: ", self.scope)
+        with tf.variable_scope(name):
             self._init(*args, **kwargs)
+            self.scope = tf.get_variable_scope().name
 
     def _init(self, ob_space, ac_space, hid_size, num_hid_layers, gaussian_fixed_var=True):
         assert isinstance(ob_space, gym.spaces.Box)
-        tf.initialize_all_variables()
-        # print("Calling init MlpPolicy: ")
 
         self.pdtype = pdtype = make_pdtype(ac_space)
         sequence_length = None
@@ -62,3 +58,4 @@ class MlpPolicy(object):
         return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
     def get_initial_state(self):
         return []
+

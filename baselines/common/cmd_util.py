@@ -36,6 +36,16 @@ def make_mujoco_env(env_id, seed):
     env.seed(seed)
     return env
 
+def make_gym_gazebo_env(env_id, seed):
+    """
+    Create a wrapped, monitored gym-gazebo.Env for Gym-Gazebo.
+    """
+    set_global_seeds(seed)
+    env = gym.make(env_id)
+    env = Monitor(env, logger.get_dir())
+    env.seed(seed)
+    return env
+
 def arg_parser():
     """
     Create an empty argparse.ArgumentParser.
