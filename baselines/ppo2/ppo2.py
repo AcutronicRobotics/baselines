@@ -164,6 +164,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
     total_timesteps = int(total_timesteps)
 
     nenvs = env.num_envs
+    print("number of envs: ", nenvs)
     ob_space = env.observation_space
     ac_space = env.action_space
     nbatch = nenvs * nsteps
@@ -198,6 +199,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
         epinfobuf.extend(epinfos)
         mblossvals = []
         if states is None: # nonrecurrent version
+            print("non recurrent version")
             inds = np.arange(nbatch)
             for _ in range(noptepochs):
                 np.random.shuffle(inds)
@@ -207,6 +209,11 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
                     slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
                     mblossvals.append(model.train(lrnow, cliprangenow, *slices))
         else: # recurrent version
+            print("recurrent version")
+            print("recurrent nenvs: ", nenvs)
+            print("recurrent nminibatches: ", nminibatches)
+            # risto hack, might not be correct
+            nenvs = nminibatches
             assert nenvs % nminibatches == 0
             envsperbatch = nenvs // nminibatches
             envinds = np.arange(nenvs)
