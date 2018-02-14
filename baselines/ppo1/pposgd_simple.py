@@ -238,8 +238,10 @@ def learn(env, policy_fn, *,
         """
         Save the model at every itteration
         """
+
         if save_model_with_prefix:
-            if np.mean(rewbuffer) > -50.0:
+            #if np.mean(rewbuffer) > -50.0:
+            if iters_so_far % 10 == 0:
                 basePath = outdir+"/models/"
 
                 if not os.path.exists(basePath):
