@@ -241,7 +241,7 @@ def learn(env, policy_fn, *,
 
         if save_model_with_prefix:
             # if np.mean(rewbuffer) > -40.0:
-            if iters_so_far % 5 == 0:
+            if iters_so_far % 1 == 0:
                 basePath = outdir+"/models/"
 
                 if not os.path.exists(basePath):
