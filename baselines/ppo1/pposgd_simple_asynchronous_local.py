@@ -11,7 +11,7 @@ import os
 import multiprocessing
 
 # An implementation of PPO that uses asynchronous local (same machine) workers.
-class TRPO(multiprocessing.Process):
+class PPO(multiprocessing.Process):
     def __init__(self):
             # args, observation_space, action_space, task_q, result_q):
         multiprocessing.Process.__init__(self)
