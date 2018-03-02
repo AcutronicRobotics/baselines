@@ -237,7 +237,7 @@ def learn(env, policy_fn, *,
         timesteps_so_far += sum(lens)
 
         """
-        Save the model at every itteration
+        Save the model at every iteration
         """
 
         if save_model_with_prefix:
