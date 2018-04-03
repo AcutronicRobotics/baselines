@@ -7,8 +7,9 @@ from baselines.common.mpi_adam import MpiAdam
 from baselines.common.mpi_moments import mpi_moments
 from mpi4py import MPI
 from collections import deque
-
 import os
+
+# An implementation of PPO that uses asynchronous distributed workers.
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     t = 0
@@ -240,8 +241,8 @@ def learn(env, policy_fn, *,
         """
 
         if save_model_with_prefix:
-            # if np.mean(rewbuffer) > -40.0:
-            if iters_so_far % 1 == 0:
+            #if np.mean(rewbuffer) > -50.0:
+            if iters_so_far % 10 == 0:
                 basePath = outdir+"/models/"
 
                 if not os.path.exists(basePath):
