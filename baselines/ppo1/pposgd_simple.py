@@ -257,9 +257,7 @@ def learn(env, policy_fn, *,
         if MPI.COMM_WORLD.Get_rank()==0:
             logger.dump_tabular()
 
-        summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-        summary_writer.add_summary(summary, timesteps_so_far)
-        # return np.mean(rewbuffer)
+    return pi
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]

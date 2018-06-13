@@ -9,6 +9,8 @@ _atariexpl7 = ['Freeway', 'Gravitar', 'MontezumaRevenge', 'Pitfall', 'PrivateEye
 _BENCHMARKS = []
 
 remove_version_re = re.compile(r'-v\d+$')
+
+
 def register_benchmark(benchmark):
     for b in _BENCHMARKS:
         if b['name'] == benchmark['name']:
@@ -76,9 +78,9 @@ register_benchmark({
 # MuJoCo
 
 _mujocosmall = [
-    'InvertedDoublePendulum-v1', 'InvertedPendulum-v1',
-    'HalfCheetah-v1', 'Hopper-v1', 'Walker2d-v1',
-    'Reacher-v1', 'Swimmer-v1']
+    'InvertedDoublePendulum-v2', 'InvertedPendulum-v2',
+    'HalfCheetah-v2', 'Hopper-v2', 'Walker2d-v2',
+    'Reacher-v2', 'Swimmer-v2']
 register_benchmark({
     'name': 'Mujoco1M',
     'description': 'Some small 2D MuJoCo tasks, run for 1M timesteps',
@@ -138,3 +140,10 @@ register_benchmark({
     'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(10e6)} for _game in _atari50]
 })
 
+# HER DDPG
+
+register_benchmark({
+    'name': 'HerDdpg',
+    'description': 'Smoke-test only benchmark of HER',
+    'tasks': [{'trials': 1, 'env_id': 'FetchReach-v1'}]
+})

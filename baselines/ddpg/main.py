@@ -23,7 +23,7 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     rank = MPI.COMM_WORLD.Get_rank()
     if rank != 0:
         logger.set_level(logger.DISABLED)
-    print("line 26")
+
     # Create envs.
     env = gym.make(env_id)
     env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
@@ -75,7 +75,7 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     print("line 76")
     training.train(env=env, eval_env=eval_env, param_noise=param_noise,
         action_noise=action_noise, actor=actor, critic=critic, memory=memory, **kwargs)
-    print("line 79")    
+    print("line 79")
     env.close()
     if eval_env is not None:
         eval_env.close()

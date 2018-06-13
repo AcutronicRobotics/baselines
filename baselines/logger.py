@@ -8,9 +8,6 @@ import datetime
 import tempfile
 from collections import defaultdict
 
-LOG_OUTPUT_FORMATS = ['stdout', 'log', 'csv']
-# Also valid: json, tensorboard
-
 DEBUG = 10
 INFO = 20
 WARN = 30
@@ -74,8 +71,11 @@ class HumanOutputFormat(KVWriter, SeqWriter):
         return s[:20] + '...' if len(s) > 23 else s
 
     def writeseq(self, seq):
-        for arg in seq:
-            self.file.write(arg)
+        seq = list(seq)
+        for (i, elem) in enumerate(seq):
+            self.file.write(elem)
+            if i < len(seq) - 1: # add space unless this is the last one
+                self.file.write(' ')
         self.file.write('\n')
         self.file.flush()
 
@@ -355,10 +355,19 @@ def configure(dir=None, format_strs=None):
     assert isinstance(dir, str)
     os.makedirs(dir, exist_ok=True)
 
+    log_suffix = ''
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.Get_rank()
+    if rank > 0:
+        log_suffix = "-rank%03i" % rank
+
     if format_strs is None:
-        strs = os.getenv('OPENAI_LOG_FORMAT')
-        format_strs = strs.split(',') if strs else LOG_OUTPUT_FORMATS
-    output_formats = [make_output_format(f, dir) for f in format_strs]
+        if rank == 0:
+            format_strs = os.getenv('OPENAI_LOG_FORMAT', 'stdout,log,csv').split(',')
+        else:
+            format_strs = os.getenv('OPENAI_LOG_FORMAT_MPI', 'log').split(',')
+    format_strs = filter(None, format_strs)
+    output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
 
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
     log('Logging to %s'%dir)
