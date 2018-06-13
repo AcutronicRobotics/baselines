@@ -34,9 +34,5 @@ src
 .cache
 
 MUJOCO_LOG.TXT
-<<<<<<< HEAD
 *.pkl
-=======
-
->>>>>>> openai/master
 
