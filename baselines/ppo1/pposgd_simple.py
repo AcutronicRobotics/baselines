@@ -1,4 +1,4 @@
-from baselines.common import Dataset, explained_variance, fmt_row, zipsame
+Evaluating losses...from baselines.common import Dataset, explained_variance, fmt_row, zipsame
 from baselines import logger
 import baselines.common.tf_util as U
 import tensorflow as tf, numpy as np
@@ -257,6 +257,8 @@ def learn(env, policy_fn, *,
         if MPI.COMM_WORLD.Get_rank()==0:
             logger.dump_tabular()
 
+        summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+        summary_writer.add_summary(summary, timesteps_so_far)
     return pi
 
 def flatten_lists(listoflists):
