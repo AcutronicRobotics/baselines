@@ -236,7 +236,7 @@ def learn(env, policy_fn, *,
         timesteps_so_far += sum(lens)
 
         """
-        Save the model at every iteration
+        Save the model at every itteration
         """
 
         if save_model_with_prefix:
@@ -259,7 +259,7 @@ def learn(env, policy_fn, *,
 
         summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
         summary_writer.add_summary(summary, timesteps_so_far)
-    return pi
+        # return np.mean(rewbuffer)
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]

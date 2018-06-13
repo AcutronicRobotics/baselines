@@ -17,10 +17,31 @@ Baselines is a fork of OpenAI's baselines repository with a set of high-quality 
 
 ## Install
 
+## Installation
+Clone the repo and cd into it:
 ```bash
 cd baselines
+```
+If using virtualenv, create a new virtualenv and activate it
+```bash
+    virtualenv env --python=python3
+    . env/bin/activate
+```
+Install baselines package
+```bash
 pip install -e .
 ```
+### MuJoCo
+Some of the baselines examples use [MuJoCo](http://www.mujoco.org) (multi-joint dynamics in contact) physics simulator, which is proprietary and requires binaries and a license (temporary 30-day license can be obtained from [www.mujoco.org](http://www.mujoco.org)). Instructions on setting up MuJoCo can be found [here](https://github.com/openai/mujoco-py)
+
+## Testing the installation
+All unit tests in baselines can be run using pytest runner:
+```
+pip install pytest
+pytest
+```
+
+## Subpackages
 
 - [A2C](baselines/a2c)
 - [ACER](baselines/acer)

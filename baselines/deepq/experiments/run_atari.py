@@ -5,13 +5,18 @@ import argparse
 from baselines import logger
 from baselines.common.atari_wrappers import make_atari
 
+
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--prioritized', type=int, default=1)
+    parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
     parser.add_argument('--dueling', type=int, default=1)
     parser.add_argument('--num-timesteps', type=int, default=int(10e6))
+    parser.add_argument('--checkpoint-freq', type=int, default=10000)
+    parser.add_argument('--checkpoint-path', type=str, default=None)
+
     args = parser.parse_args()
     logger.configure()
     set_global_seeds(args.seed)
@@ -23,7 +28,8 @@ def main():
         hiddens=[256],
         dueling=bool(args.dueling),
     )
-    act = deepq.learn(
+
+    deepq.learn(
         env,
         q_func=model,
         lr=1e-4,
@@ -35,9 +41,12 @@ def main():
         learning_starts=10000,
         target_network_update_freq=1000,
         gamma=0.99,
-        prioritized_replay=bool(args.prioritized)
+        prioritized_replay=bool(args.prioritized),
+        prioritized_replay_alpha=args.prioritized_replay_alpha,
+        checkpoint_freq=args.checkpoint_freq,
+        checkpoint_path=args.checkpoint_path,
     )
-    # act.save("pong_model.pkl") XXX
+
     env.close()
 
 
