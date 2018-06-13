@@ -139,7 +139,7 @@ class AgentSCARAROS(object):
         self.goal_vel_value = [self.agent['goal_vel']]*self.scara_chain.getNrOfJoints()
         self.goal_effort_value = [float('nan')]*self.scara_chain.getNrOfJoints()
         self.joint_order = self.agent['joint_order']
-        
+
 
     def _observation_callback(self, message):
         # message: observation from the robot to store each listen."""
@@ -332,7 +332,7 @@ class AgentSCARAROS(object):
                 self.ob, ee_points  = self._get_obs()
 
                 dt = time.time() - self.last_time
-                print("dt: ", dt)
+                # print("dt: ", dt)
                 for i in range(self.scara_chain.getNrOfJoints()):
                     if(self._observation_msg.actual.positions[i] > action[i]):
                         self.goal_vel[i] = -self.goal_vel_value[0]
