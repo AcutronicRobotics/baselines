@@ -98,9 +98,6 @@ class MaxAndSkipEnv(gym.Wrapper):
         self._obs_buffer = np.zeros((2,)+env.observation_space.shape, dtype=np.uint8)
         self._skip       = skip
 
-    def reset(self):
-        return self.env.reset()
-
     def step(self, action):
         """Repeat action, sum reward, and max over last observations."""
         total_reward = 0.0
@@ -193,12 +190,25 @@ class LazyFrames(object):
 
         You'd not believe how complex the previous solution was."""
         self._frames = frames
+        self._out = None
+
+    def _force(self):
+        if self._out is None:
+            self._out = np.concatenate(self._frames, axis=2)
+            self._frames = None
+        return self._out
 
     def __array__(self, dtype=None):
-        out = np.concatenate(self._frames, axis=2)
+        out = self._force()
         if dtype is not None:
             out = out.astype(dtype)
         return out
+
+    def __len__(self):
+        return len(self._force())
+
+    def __getitem__(self, i):
+        return self._force()[i]
 
 def make_atari(env_id):
     env = gym.make(env_id)
@@ -222,4 +232,3 @@ def wrap_deepmind(env, episode_life=True, clip_rewards=True, frame_stack=False, 
     if frame_stack:
         env = FrameStack(env, 4)
     return env
-

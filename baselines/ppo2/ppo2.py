@@ -7,6 +7,7 @@ import tensorflow as tf
 from baselines import logger
 from collections import deque
 from baselines.common import explained_variance
+from baselines.common.runners import AbstractEnvRunner
 
 class Model(object):
     def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
@@ -84,20 +85,12 @@ class Model(object):
         self.load = load
         tf.global_variables_initializer().run(session=sess) #pylint: disable=E1101
 
-class Runner(object):
+class Runner(AbstractEnvRunner):
 
     def __init__(self, *, env, model, nsteps, gamma, lam):
-        self.env = env
-        self.model = model
-        nenv = env.num_envs
-        self.obs = np.zeros((nenv,) + env.observation_space.shape, dtype=model.train_model.X.dtype.name)
-        self.obs[:] = env.reset()
-        # print("obs shape:", self.obs.shape)
-        self.gamma = gamma
+        super().__init__(env=env, model=model, nsteps=nsteps)
         self.lam = lam
-        self.nsteps = nsteps
-        self.states = model.initial_state
-        self.dones = [False for _ in range(nenv)]
+        self.gamma = gamma
 
     def run(self):
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [],[],[],[],[],[]
@@ -155,8 +148,7 @@ def constfn(val):
 def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
             log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
-            job_id=None, # this variable is used for indentifing Spearmint iteration number. It is usually set by the Spearmint iterator
-            save_interval=0, outdir="/tmp/rosrl/experiments/continuous/ppo2/"):
+            save_interval=0, load_path=None):
 
     if isinstance(lr, float): lr = constfn(lr)
     else: assert callable(lr)
@@ -165,7 +157,6 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
     total_timesteps = int(total_timesteps)
 
     nenvs = env.num_envs
-    print("number of envs: ", nenvs)
     ob_space = env.observation_space
     ac_space = env.action_space
     nbatch = nenvs * nsteps
@@ -174,16 +165,14 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
     make_model = lambda : Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
                     nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
                     max_grad_norm=max_grad_norm)
-
     if save_interval and logger.get_dir():
         import cloudpickle
         with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
             fh.write(cloudpickle.dumps(make_model))
     model = make_model()
+    if load_path is not None:
+        model.load(load_path)
     runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, lam=lam)
-
-    # Log tensorboard data (always)
-    summary_writer = tf.summary.FileWriter(outdir, graph=tf.get_default_graph())
 
     epinfobuf = deque(maxlen=100)
     tfirststart = time.time()
@@ -200,7 +189,6 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
         epinfobuf.extend(epinfos)
         mblossvals = []
         if states is None: # nonrecurrent version
-            print("non recurrent version")
             inds = np.arange(nbatch)
             for _ in range(noptepochs):
                 np.random.shuffle(inds)
@@ -210,11 +198,6 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
                     slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
                     mblossvals.append(model.train(lrnow, cliprangenow, *slices))
         else: # recurrent version
-            print("recurrent version")
-            print("recurrent nenvs: ", nenvs)
-            print("recurrent nminibatches: ", nminibatches)
-            # risto hack, might not be correct
-            nenvs = nminibatches
             assert nenvs % nminibatches == 0
             envsperbatch = nenvs // nminibatches
             envinds = np.arange(nenvs)
@@ -233,7 +216,6 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
         lossvals = np.mean(mblossvals, axis=0)
         tnow = time.time()
         fps = int(nbatch / (tnow - tstart))
-
         if update % log_interval == 0 or update == 1:
             ev = explained_variance(values, returns)
             logger.logkv("serial_timesteps", update*nsteps)
@@ -241,54 +223,20 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             logger.logkv("total_timesteps", update*nbatch)
             logger.logkv("fps", fps)
             logger.logkv("explained_variance", float(ev))
-            logger.logkv('EpRewMean', safemean([epinfo['r'] for epinfo in epinfobuf]))
-            logger.logkv('EpRewSEM', safestd([epinfo['r'] for epinfo in epinfobuf]))
-            logger.logkv('EpLenMean', safemean([epinfo['l'] for epinfo in epinfobuf]))
+            logger.logkv('eprewmean', safemean([epinfo['r'] for epinfo in epinfobuf]))
+            logger.logkv('eplenmean', safemean([epinfo['l'] for epinfo in epinfobuf]))
             logger.logkv('time_elapsed', tnow - tfirststart)
             for (lossval, lossname) in zip(lossvals, model.loss_names):
                 logger.logkv(lossname, lossval)
             logger.dumpkvs()
-
-            # As it is, this baseline (PPO2), is logging from a dictionary provided by the environment itself.
-            # As most environments don't fill up this dictionary, the primitive bench.Monitor from OpenAI's code is used
-            # to wrap an environment within an environment which eventually outputs a dictionary with the corresponding values.
-            #
-            # Ideally, we should compare these "dictionary" values with the rewards obtained from the real environment and use this
-            # to unify this implementation with other baselines.
-
-            # # Research on how to obtain EpRewMean from the environment "real rewards" and not the dictionary epinfobuf
-            # # NOT MANDATORY, just for coherence
-            # RK: The PPO1 uses same technique as in Monitor. fills up the reward buffer until done=True, then resets it.
-            # Then this is use to calculate mean episode reward.
-            # print(returns)
-            # print(len(returns))
-            # print(np.sum(returns))
-            # print(np.sum(returns)/nupdates)
-
-            # Log in tensorboard every "update % log_interval == 0" with weighted x axis
-            # print([epinfo['r'] for epinfo in epinfobuf])
-            summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
-            summary_writer.add_summary(summary, update*nsteps)
-            summary_writer.flush()
-
-        # added by Risto, also save the network when the mean reward threshold is > 0.5
-        mean_rew = safemean([epinfo['r'] for epinfo in epinfobuf])
-        if save_interval and (update % save_interval == 0 or update == 1 or mean_rew>-50.) and logger.get_dir():
+        if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir():
             checkdir = osp.join(logger.get_dir(), 'checkpoints')
             os.makedirs(checkdir, exist_ok=True)
             savepath = osp.join(checkdir, '%.5i'%update)
             print('Saving to', savepath)
             model.save(savepath)
-
-
-        # # Log in tensorboard every "update"
-        # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = safemean([epinfo['r'] for epinfo in epinfobuf]))])
-        # summary_writer.add_summary(summary, update)
-    return safemean([epinfo['r'] for epinfo in epinfobuf])
     env.close()
+    return model
 
 def safemean(xs):
     return np.nan if len(xs) == 0 else np.mean(xs)
-
-def safestd(xs):
-    return np.nan if len(xs) == 0 else np.std(xs)
