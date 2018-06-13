@@ -4,7 +4,7 @@ from baselines import logger
 import baselines.common as common
 from baselines.common import tf_util as U
 from baselines.acktr import kfac
-from baselines.acktr.filters import ZFilter
+from baselines.common.filters import ZFilter
 
 def pathlength(path):
     return path["reward"].shape[0]# Loss function that we'll differentiate to get the policy gradient
@@ -170,4 +170,3 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
 
     coord.request_stop()
     coord.join(enqueue_threads)
-    return np.mean([path["reward"].sum() for path in paths]) #Needed for hyperparameter optimization

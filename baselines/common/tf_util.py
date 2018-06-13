@@ -48,18 +48,17 @@ def huber_loss(x, delta=1.0):
 # Global session
 # ================================================================
 
-def make_session(num_cpu=None, make_default=False):
+def make_session(num_cpu=None, make_default=False, graph=None):
     """Returns a session that will use <num_cpu> CPU's only"""
     if num_cpu is None:
         num_cpu = int(os.getenv('RCALL_NUM_CPU', multiprocessing.cpu_count()))
     tf_config = tf.ConfigProto(
         inter_op_parallelism_threads=num_cpu,
         intra_op_parallelism_threads=num_cpu)
-    tf_config.gpu_options.allocator_type = 'BFC'
     if make_default:
-        return tf.InteractiveSession(config=tf_config)
+        return tf.InteractiveSession(config=tf_config, graph=graph)
     else:
-        return tf.Session(config=tf_config)
+        return tf.Session(config=tf_config, graph=graph)
 
 def single_threaded_session():
     """Returns a session which will only use a single CPU"""
@@ -74,19 +73,6 @@ def in_session(f):
 
 ALREADY_INITIALIZED = set()
 
-# ================================================================
-# Saving variables
-# ================================================================
-
-def load_state(fname):
-    saver = tf.train.Saver()
-    saver.restore(tf.get_default_session(), fname)
-
-def save_state(fname):
-    os.makedirs(os.path.dirname(fname), exist_ok=True)
-    saver = tf.train.Saver()
-    saver.save(tf.get_default_session(), fname)
-
 def initialize():
     """Initialize all the uninitialized variables in the global scope."""
     new_variables = set(tf.global_variables()) - ALREADY_INITIALIZED
@@ -97,10 +83,10 @@ def initialize():
 # Model components
 # ================================================================
 
-def normc_initializer(std=1.0):
+def normc_initializer(std=1.0, axis=0):
     def _initializer(shape, dtype=None, partition_info=None):  # pylint: disable=W0613
         out = np.random.randn(*shape).astype(np.float32)
-        out *= std / np.sqrt(np.square(out).sum(axis=0, keepdims=True))
+        out *= std / np.sqrt(np.square(out).sum(axis=axis, keepdims=True))
         return tf.constant(out)
     return _initializer
 
@@ -277,7 +263,7 @@ def flattenallbut0(x):
 
 
 # ================================================================
-# Diagnostics 
+# Diagnostics
 # ================================================================
 
 def display_var_info(vars):
@@ -286,8 +272,31 @@ def display_var_info(vars):
     for v in vars:
         name = v.name
         if "/Adam" in name or "beta1_power" in name or "beta2_power" in name: continue
-        count_params += np.prod(v.shape.as_list())
-        if "/b:" in name: continue    # Wx+b, bias is not interesting to look at => count params, but not print
-        logger.info("    %s%s%s" % (name, " "*(55-len(name)), str(v.shape)))
-    logger.info("Total model parameters: %0.1f million" % (count_params*1e-6))
+        v_params = np.prod(v.shape.as_list())
+        count_params += v_params
+        if "/b:" in name or "/biases" in name: continue    # Wx+b, bias is not interesting to look at => count params, but not print
+        logger.info("   %s%s %i params %s" % (name, " "*(55-len(name)), v_params, str(v.shape)))
 
+    logger.info("Total model parameters: %0.2f million" % (count_params*1e-6))
+
+
+def get_available_gpus():
+    # recipe from here:
+    # https://stackoverflow.com/questions/38559755/how-to-get-current-available-gpus-in-tensorflow?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+
+    from tensorflow.python.client import device_lib
+    local_device_protos = device_lib.list_local_devices()
+    return [x.name for x in local_device_protos if x.device_type == 'GPU']
+
+# ================================================================
+# Saving variables
+# ================================================================
+
+def load_state(fname):
+    saver = tf.train.Saver()
+    saver.restore(tf.get_default_session(), fname)
+
+def save_state(fname):
+    os.makedirs(os.path.dirname(fname), exist_ok=True)
+    saver = tf.train.Saver()
+    saver.save(tf.get_default_session(), fname)
