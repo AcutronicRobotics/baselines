@@ -144,3 +144,65 @@ class MlpPolicy(object):
         self.vf = vf
         self.step = step
         self.value = value
+
+class LstmMlpPolicy(object):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=16, reuse=False):
+        nenv = nbatch // nsteps
+
+        ob_shape = (nbatch,) + ob_space.shape
+        actdim = ac_space.shape[0]
+        activ = tf.tanh
+        X, processed_x = observation_input(ob_space, nbatch)
+        processed_x = tf.layers.flatten(processed_x)
+        M = tf.placeholder(tf.float32, [nbatch]) #mask (done t-1)
+        S = tf.placeholder(tf.float32, [nenv, nlstm*2]) #states
+        with tf.variable_scope("model", reuse=reuse):
+            h1 = activ(fc(X, 'fc1', nh=64, init_scale=np.sqrt(2)))
+            xs = batch_to_seq(h1, nenv, nsteps)
+            ms = batch_to_seq(processed_x, nenv, nsteps)
+            h2, snew = lstm(xs, ms, S, 'lstm1', nh=nlstm)
+            h2 = seq_to_batch(h2)
+            pi = activ(fc(h2, 'pi', actdim, init_scale=0.01))
+            logstd = tf.get_variable(name="logstd", shape=[1, actdim],
+                initializer=tf.zeros_initializer())
+
+            # h1 = activ(fc(X, 'vf_fc1', nh=64, init_scale=np.sqrt(2)))
+            # h2 = activ(fc(h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2)))
+            vf_h1 = activ(fc(processed_x, 'vf_fc1', nh=64, init_scale=np.sqrt(2)))
+            vf_h2 = activ(fc(vf_h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2)))
+            vf = fc(vf_h2, 'vf', 1)[:,0]
+
+        pdparam = tf.concat([pi, pi * 0.0 + logstd], axis=1)
+
+        self.pdtype = make_pdtype(ac_space)
+        self.pd = self.pdtype.pdfromflat(pdparam)
+
+        a0 = self.pd.sample()
+        # v0 = vf[:, 0]
+        neglogp0 = self.pd.neglogp(a0)
+        self.initial_state = np.zeros((nenv, nlstm*2), dtype=np.float32)
+
+        def step(ob, state, mask):
+            return sess.run([a0, vf, snew, neglogp0], {X:ob, S:state, M:mask})
+
+        def value(ob, state, mask):
+            return sess.run(vf, {X:ob, S:state, M:mask})
+
+        def get_act(ob, state, mask):
+            a = sess.run(a0, {X:ob, S:state, M:mask})
+            return a
+
+        def get_mean(ob, state, mask):
+            a, state_new = sess.run([pi, snew], {X:ob, S:state, M:mask})
+            return a, state_new
+
+        self.X = X
+        self.processed_x = processed_x
+        self.S = S
+        self.pi = pi
+        self.vf = vf
+        self.step = step
+        self.value = value
+        self.act = get_act
+        self.mean = get_mean
+        self.M = processed_x

@@ -148,7 +148,14 @@ def constfn(val):
 def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
             log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
-            save_interval=0, load_path=None):
+            save_interval=0, load_path=None,
+            restore_model_from_file=None,
+            #save_model_with_prefix, # this is the naming of the saved model file. Usually here we set indication of the target goal:
+                                            # for example 3dof_ppo1_H.
+                                            # That way we can only select which networks we can execute to the real robot. We do not have to send all files or folder.
+                                            # Naming of the model file should be self explanatory.
+            job_id=None, # this variable is used for indentifing Spearmint iteration number. It is usually set by the Spearmint iterator
+            outdir="/tmp/rosrl/experiments/continuous/ppo1/"):
 
     if isinstance(lr, float): lr = constfn(lr)
     else: assert callable(lr)
@@ -162,6 +169,12 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
     nbatch = nenvs * nsteps
     nbatch_train = nbatch // nminibatches
 
+    # if save_model_with_prefix:
+    #     if job_id is not None:
+    #         basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo2/'+job_id
+    #     else:
+    #         basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo2/'
+    #
     make_model = lambda : Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
                     nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
                     max_grad_norm=max_grad_norm)
