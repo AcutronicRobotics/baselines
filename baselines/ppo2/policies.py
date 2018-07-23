@@ -153,12 +153,13 @@ class LstmMlpPolicy(object):
         actdim = ac_space.shape[0]
         activ = tf.tanh
         X, processed_x = observation_input(ob_space, nbatch)
-        processed_x = tf.layers.flatten(processed_x)
         M = tf.placeholder(tf.float32, [nbatch]) #mask (done t-1)
+        # processed_x = tf.layers.flatten(processed_x)
         S = tf.placeholder(tf.float32, [nenv, nlstm*2]) #states
         with tf.variable_scope("model", reuse=reuse):
-            h1 = activ(fc(X, 'fc1', nh=64, init_scale=np.sqrt(2)))
-            xs = batch_to_seq(h1, nenv, nsteps)
+            #h1 = activ(fc(X, 'fc1', nh=64, init_scale=np.sqrt(2)))
+            pi_h1 = activ(fc(X, 'pi_fc1', nh=64, init_scale=np.sqrt(2)))
+            xs = batch_to_seq(pi_h1, nenv, nsteps)
             ms = batch_to_seq(processed_x, nenv, nsteps)
             h2, snew = lstm(xs, ms, S, 'lstm1', nh=nlstm)
             h2 = seq_to_batch(h2)
@@ -183,17 +184,17 @@ class LstmMlpPolicy(object):
         self.initial_state = np.zeros((nenv, nlstm*2), dtype=np.float32)
 
         def step(ob, state, mask):
-            return sess.run([a0, vf, snew, neglogp0], {X:ob, S:state, M:mask})
+            return sess.run([a0, vf, snew, neglogp0], {X:ob, S:state})
 
         def value(ob, state, mask):
-            return sess.run(vf, {X:ob, S:state, M:mask})
+            return sess.run(vf, {X:ob, S:state})
 
         def get_act(ob, state, mask):
-            a = sess.run(a0, {X:ob, S:state, M:mask})
+            a = sess.run(a0, {X:ob, S:state})
             return a
 
         def get_mean(ob, state, mask):
-            a, state_new = sess.run([pi, snew], {X:ob, S:state, M:mask})
+            a, state_new = sess.run([pi, snew], {X:ob, S:state})
             return a, state_new
 
         self.X = X
@@ -205,4 +206,4 @@ class LstmMlpPolicy(object):
         self.value = value
         self.act = get_act
         self.mean = get_mean
-        self.M = processed_x
+        self.M = M
