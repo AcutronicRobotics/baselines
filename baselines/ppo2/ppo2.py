@@ -152,33 +152,33 @@ def constfn(val):
 def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0, lr=3e-4,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
             log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
-<<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485
-            save_interval=0, load_path=None,
-            restore_model_from_file=None,
-            #save_model_with_prefix, # this is the naming of the saved model file. Usually here we set indication of the target goal:
-                                            # for example 3dof_ppo1_H.
-                                            # That way we can only select which networks we can execute to the real robot. We do not have to send all files or folder.
-                                            # Naming of the model file should be self explanatory.
-            job_id=None, # this variable is used for indentifing Spearmint iteration number. It is usually set by the Spearmint iterator
-            outdir="/tmp/rosrl/experiments/continuous/ppo1/"):
-=======
+# <<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485
+#             save_interval=0, load_path=None,
+#             restore_model_from_file=None,
+#             #save_model_with_prefix, # this is the naming of the saved model file. Usually here we set indication of the target goal:
+#                                             # for example 3dof_ppo1_H.
+#                                             # That way we can only select which networks we can execute to the real robot. We do not have to send all files or folder.
+#                                             # Naming of the model file should be self explanatory.
+#             job_id=None, # this variable is used for indentifing Spearmint iteration number. It is usually set by the Spearmint iterator
+#             outdir="/tmp/rosrl/experiments/continuous/ppo1/"):
+# =======
             save_interval=0, load_path=None, **network_kwargs):
     '''
     Learn policy using PPO algorithm (https://arxiv.org/abs/1707.06347)
-    
+
     Parameters:
     ----------
 
     network:                          policy network architecture. Either string (mlp, lstm, lnlstm, cnn_lstm, cnn, cnn_small, conv_only - see baselines.common/models.py for full list)
-                                      specifying the standard network architecture, or a function that takes tensorflow tensor as input and returns 
+                                      specifying the standard network architecture, or a function that takes tensorflow tensor as input and returns
                                       tuple (output_tensor, extra_feed) where output tensor is the last network layer output, extra_feed is None for feed-forward
                                       neural nets, and extra_feed is a dictionary describing how to feed state into the network for recurrent neural nets.
                                       See baselines.common/policies.py/lstm for more details on using recurrent nets in policies
 
-    env: baselines.common.vec_env.VecEnv     environment. Needs to be vectorized for parallel environment simulation. 
+    env: baselines.common.vec_env.VecEnv     environment. Needs to be vectorized for parallel environment simulation.
                                       The environments produced by gym.make can be wrapped using baselines.common.vec_env.DummyVecEnv class.
 
-    
+
     nsteps: int                       number of steps of the vectorized environment per update (i.e. batch size is nsteps * nenv where
                                       nenv is number of environment copies simulated in parallel)
 
@@ -186,13 +186,13 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
 
     ent_coef: float                   policy entropy coefficient in the optimization objective
 
-    lr: float or function             learning rate, constant or a schedule function [0,1] -> R+ where 1 is beginning of the 
+    lr: float or function             learning rate, constant or a schedule function [0,1] -> R+ where 1 is beginning of the
                                       training and 0 is the end of the training.
 
     vf_coef: float                    value function loss coefficient in the optimization objective
 
     max_grad_norm: float or None      gradient norm clipping coefficient
-    
+
     gamma: float                      discounting factor
 
     lam: float                        advantage estimation discounting factor (lambda in the paper)
@@ -203,20 +203,20 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
 
     noptepochs: int                   number of training epochs per update
 
-    cliprange: float or function      clipping range, constant or schedule function [0,1] -> R+ where 1 is beginning of the training 
-                                      and 0 is the end of the training 
+    cliprange: float or function      clipping range, constant or schedule function [0,1] -> R+ where 1 is beginning of the training
+                                      and 0 is the end of the training
 
     save_interval: int                number of timesteps between saving events
 
     load_path: str                    path to load the model from
 
     **network_kwargs:                 keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
-                                      For instance, 'mlp' network architecture has arguments num_hidden and num_layers. 
+                                      For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
 
-    
+
 
     '''
-    
+
     set_global_seeds(seed)
 >>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490)
 
@@ -318,6 +318,3 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
 
 def safemean(xs):
     return np.nan if len(xs) == 0 else np.mean(xs)
-
-
-
