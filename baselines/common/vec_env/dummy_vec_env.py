@@ -1,6 +1,5 @@
 import numpy as np
 from gym import spaces
-from collections import OrderedDict
 from . import VecEnv
 
 class DummyVecEnv(VecEnv):
