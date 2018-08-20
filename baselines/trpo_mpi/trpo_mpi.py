@@ -84,34 +84,34 @@ def add_vtarg_and_adv(seg, gamma, lam):
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
 def learn(*,
-        network, 
+        network,
         env,
-        total_timesteps, 
+        total_timesteps,
         timesteps_per_batch=1024, # what to train on
-        max_kl=0.001, 
-        cg_iters=10,   
-        gamma=0.99, 
+        max_kl=0.001,
+        cg_iters=10,
+        gamma=0.99,
         lam=1.0, # advantage estimation
         seed=None,
         entcoeff=0.0,
         cg_damping=1e-2,
         vf_stepsize=3e-4,
         vf_iters =3,
-<<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485
-        max_timesteps=0, max_episodes=0, max_iters=0,  # time constraint
-        callback=None,
-        save_model_with_prefix,
-        outdir="/tmp/rosrl/experiments/continuous/trpo/"
-=======
+# <<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485
+#         max_timesteps=0, max_episodes=0, max_iters=0,  # time constraint
+#         callback=None,
+#         save_model_with_prefix,
+#         outdir="/tmp/rosrl/experiments/continuous/trpo/"
+# =======
         max_episodes=0, max_iters=0,  # time constraint
         callback=None,
         load_path=None,
         **network_kwargs
->>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490)
+# >>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490)
         ):
     '''
     learn a policy function with TRPO algorithm
-    
+
     Parameters:
     ----------
 
@@ -129,7 +129,7 @@ def learn(*,
 
     cg_iters                number of iterations of conjugate gradient algorithm
 
-    cg_damping              conjugate gradient damping 
+    cg_damping              conjugate gradient damping
 
     vf_stepsize             learning rate for adam optimizer used to optimie value function loss
 
@@ -138,11 +138,11 @@ def learn(*,
     total_timesteps           max number of timesteps
 
     max_episodes            max number of episodes
-    
+
     max_iters               maximum number of policy optimization iterations
 
     callback                function to be called with (locals(), globals()) each policy optimization step
-    
+
     load_path               str, path to load the model from (default: None, i.e. no model is loaded)
 
     **network_kwargs        keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
@@ -153,18 +153,18 @@ def learn(*,
     learnt model
 
     '''
-    
-    
+
+
     nworkers = MPI.COMM_WORLD.Get_size()
     rank = MPI.COMM_WORLD.Get_rank()
 
     cpus_per_worker = 1
     U.get_session(config=tf.ConfigProto(
-            allow_soft_placement=True, 
+            allow_soft_placement=True,
             inter_op_parallelism_threads=cpus_per_worker,
             intra_op_parallelism_threads=cpus_per_worker
     ))
-    
+
 
     policy = build_policy(env, network, value_network='copy', **network_kwargs)
     set_global_seeds(seed)
@@ -253,7 +253,7 @@ def learn(*,
     U.initialize()
     if load_path is not None:
         pi.load(load_path)
-    
+
     th_init = get_flat()
     MPI.COMM_WORLD.Bcast(th_init, root=0)
     set_from_flat(th_init)
@@ -373,23 +373,23 @@ def learn(*,
         episodes_so_far += len(lens)
         timesteps_so_far += sum(lens)
 
-        # Log in tensorboard
-        summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-        summary_writer.add_summary(summary, timesteps_so_far)
+        # # Log in tensorboard
+        # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+        # summary_writer.add_summary(summary, timesteps_so_far)
 
 
-        """
-        Save the model at every itteration
-        """
-        if save_model_with_prefix:
-            basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/trpo/'
-            # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-            # summary_writer.add_summary(summary, iters_so_far)
-            if not os.path.exists(basePath):
-                os.makedirs(basePath)
-            modelF= basePath + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
-            U.save_state(modelF)
-            logger.log("Saved model to file :{}".format(modelF))
+        # """
+        # Save the model at every itteration
+        # """
+        # if save_model_with_prefix:
+        #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/trpo/'
+        #     # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
+        #     # summary_writer.add_summary(summary, iters_so_far)
+        #     if not os.path.exists(basePath):
+        #         os.makedirs(basePath)
+        #     modelF= basePath + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
+        #     U.save_state(modelF)
+        #     logger.log("Saved model to file :{}".format(modelF))
 
         iters_so_far += 1
 
@@ -413,8 +413,7 @@ def get_trainable_variables(scope):
     return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
 
 def get_vf_trainable_variables(scope):
-    return [v for v in get_trainable_variables(scope) if 'vf' in v.name[len(scope):].split('/')]    
+    return [v for v in get_trainable_variables(scope) if 'vf' in v.name[len(scope):].split('/')]
 
 def get_pi_trainable_variables(scope):
-    return [v for v in get_trainable_variables(scope) if 'pi' in v.name[len(scope):].split('/')]    
-
+    return [v for v in get_trainable_variables(scope) if 'pi' in v.name[len(scope):].split('/')]

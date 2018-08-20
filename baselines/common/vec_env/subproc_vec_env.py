@@ -92,18 +92,12 @@ class SubprocVecEnv(VecEnv):
         imgs = [pipe.recv() for pipe in self.remotes]
         bigimg = tile_images(imgs)
         if mode == 'human':
-<<<<<<< 7e770e4fe549b0178e81fc5e17759008512bc332
-            import cv2
-            cv2.imshow('vecenv', bigimg[:,:,::-1])
-            cv2.waitKey(1)
-=======
             if self.viewer is None:
                 from gym.envs.classic_control import rendering
                 self.viewer = rendering.SimpleImageViewer()
 
             self.viewer.imshow(bigimg[:, :, ::-1])
 
->>>>>>> restore subrepo conftest.py files (#22)
         elif mode == 'rgb_array':
             return bigimg
         else:

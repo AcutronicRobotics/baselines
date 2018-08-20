@@ -114,13 +114,13 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           param_noise=False,
           callback=None,
-<<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485:baselines/deepq/simple.py
-          outdir = '/tmp/experiments/discrete/DQN/'):
-=======
+# <<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485:baselines/deepq/simple.py
+#           outdir = '/tmp/experiments/discrete/DQN/'):
+# =======
           load_path=None,
           **network_kwargs
             ):
->>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490):baselines/deepq/deepq.py
+# >>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490):baselines/deepq/deepq.py
     """Train a deepq model.
 
     Parameters
@@ -179,16 +179,16 @@ def learn(env,
     callback: (locals, globals) -> None
         function called at every steps with state of the algorithm.
         If callback returns true training stops.
-<<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485:baselines/deepq/simple.py
-    outdir: string
-        Just an output directory for tensorboard logs
-=======
+# <<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485:baselines/deepq/simple.py
+#     outdir: string
+#         Just an output directory for tensorboard logs
+# =======
     load_path: str
         path to load the model from. (default: None)
     **network_kwargs
-        additional keyword arguments to pass to the network builder. 
+        additional keyword arguments to pass to the network builder.
 
->>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490):baselines/deepq/deepq.py
+# >>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490):baselines/deepq/deepq.py
     Returns
     -------
     act: ActWrapper
@@ -226,7 +226,7 @@ def learn(env,
     }
 
     act = ActWrapper(act, act_params)
-  
+
     # Create the replay buffer
     if prioritized_replay:
         replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
@@ -257,7 +257,7 @@ def learn(env,
 
         model_file = os.path.join(td, "model")
         model_saved = False
-        
+
         if tf.train.latest_checkpoint(td) is not None:
             load_state(model_file)
             logger.log('Loaded model from {}'.format(model_file))
@@ -265,7 +265,7 @@ def learn(env,
         elif load_path is not None:
             load_state(load_path)
             logger.log('Loaded model from {}'.format(load_path))
-        
+
 
         for t in range(total_timesteps):
             if callback is not None:
@@ -295,15 +295,15 @@ def learn(env,
             obs = new_obs
 
             episode_rewards[-1] += rew
-            if done:
-                # Log the episode reward
-                summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1])])
-                summary_writer.add_summary(summary, t)
-                summary_writer.flush()
-
-                obs = env.reset()
-                episode_rewards.append(0.0)
-                reset = True
+            # if done:
+            #     # Log the episode reward
+            #     summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1])])
+            #     summary_writer.add_summary(summary, t)
+            #     summary_writer.flush()
+            #
+            #     obs = env.reset()
+            #     episode_rewards.append(0.0)
+            #     reset = True
 
             if t > learning_starts and t % train_freq == 0:
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.

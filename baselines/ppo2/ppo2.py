@@ -218,8 +218,6 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
     '''
 
     set_global_seeds(seed)
->>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490)
-
     if isinstance(lr, float): lr = constfn(lr)
     else: assert callable(lr)
     if isinstance(cliprange, float): cliprange = constfn(cliprange)

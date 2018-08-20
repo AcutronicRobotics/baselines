@@ -34,8 +34,3 @@ src
 .cache
 
 MUJOCO_LOG.TXT
-<<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485
-*.pkl
-
-=======
->>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490)
