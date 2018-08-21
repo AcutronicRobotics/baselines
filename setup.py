@@ -9,7 +9,7 @@ if sys.version_info.major != 3:
 
 extras = {
     'test': [
-        'filelock', 
+        'filelock',
         'pytest'
     ]
 }
@@ -33,7 +33,7 @@ setup(name='baselines',
           'progressbar2',
           'mpi4py',
           'cloudpickle',
-          'tensorflow>=1.4.0',
+          'tensorflow-gpu>=1.4.0',
           'click',
           'opencv-python'
       ],
