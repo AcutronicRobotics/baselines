@@ -33,10 +33,6 @@ setup(name='baselines',
           'progressbar2',
           'mpi4py',
           'cloudpickle',
-<<<<<<< HEAD
-          'tensorflow-gpu>=1.4.0',
-=======
->>>>>>> 3900f2a... baselines issue 146 (remove tensorflow from setup.py) (#34)
           'click',
           'opencv-python'
       ],
