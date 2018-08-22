@@ -1,8 +1,12 @@
 import numpy as np
 from multiprocessing import Process, Pipe
+<<<<<<< HEAD
 from baselines.common.vec_env import VecEnv, CloudpickleWrapper
 from baselines.common.tile_images import tile_images
 
+=======
+from . import VecEnv, CloudpickleWrapper
+>>>>>>> 14c1d69... Reduce duplication in VecEnv subclasses. (#38)
 
 def worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
@@ -38,7 +42,6 @@ class SubprocVecEnv(VecEnv):
         envs: list of gym environments to run in subprocesses
         """
         self.waiting = False
-        self.closed = False
         nenvs = len(env_fns)
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
         self.ps = [Process(target=worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
@@ -74,9 +77,7 @@ class SubprocVecEnv(VecEnv):
             remote.send(('reset_task', None))
         return np.stack([remote.recv() for remote in self.remotes])
 
-    def close(self):
-        if self.closed:
-            return
+    def close_extras(self):
         if self.waiting:
             for remote in self.remotes:
                 remote.recv()
@@ -84,21 +85,13 @@ class SubprocVecEnv(VecEnv):
             remote.send(('close', None))
         for p in self.ps:
             p.join()
+<<<<<<< HEAD
         self.closed = True
+=======
+>>>>>>> 14c1d69... Reduce duplication in VecEnv subclasses. (#38)
 
-    def render(self, mode='human'):
+    def get_images(self):
         for pipe in self.remotes:
             pipe.send(('render', None))
         imgs = [pipe.recv() for pipe in self.remotes]
-        bigimg = tile_images(imgs)
-        if mode == 'human':
-            if self.viewer is None:
-                from gym.envs.classic_control import rendering
-                self.viewer = rendering.SimpleImageViewer()
-
-            self.viewer.imshow(bigimg[:, :, ::-1])
-
-        elif mode == 'rgb_array':
-            return bigimg
-        else:
-            raise NotImplementedError
+        return imgs

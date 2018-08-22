@@ -64,9 +64,6 @@ class DummyVecEnv(VecEnv):
     def close(self):
         return
 
-    def render(self, mode='human'):
-        return [e.render(mode=mode) for e in self.envs]
-
     def _save_obs(self, e, obs):
         for k in self.keys:
             if k is None:
@@ -75,7 +72,15 @@ class DummyVecEnv(VecEnv):
                 self.buf_obs[k][e] = obs[k]
 
     def _obs_from_buf(self):
+<<<<<<< HEAD
         if self.keys==[None]:
             return self.buf_obs[None]
         else:
             return self.buf_obs
+=======
+        return dict_to_obs(copy_obs_dict(self.buf_obs))
+
+    def get_images(self):
+        return [env.render(mode='rgb') for env in self.envs]
+        
+>>>>>>> 14c1d69... Reduce duplication in VecEnv subclasses. (#38)
