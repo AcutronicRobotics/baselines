@@ -152,16 +152,6 @@ def constfn(val):
 def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0, lr=3e-4,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
             log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
-# <<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485
-#             save_interval=0, load_path=None,
-#             restore_model_from_file=None,
-#             #save_model_with_prefix, # this is the naming of the saved model file. Usually here we set indication of the target goal:
-#                                             # for example 3dof_ppo1_H.
-#                                             # That way we can only select which networks we can execute to the real robot. We do not have to send all files or folder.
-#                                             # Naming of the model file should be self explanatory.
-#             job_id=None, # this variable is used for indentifing Spearmint iteration number. It is usually set by the Spearmint iterator
-#             outdir="/tmp/rosrl/experiments/continuous/ppo1/"):
-# =======
             save_interval=0, load_path=None, **network_kwargs):
     '''
     Learn policy using PPO algorithm (https://arxiv.org/abs/1707.06347)
@@ -199,8 +189,8 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
 
     log_interval: int                 number of timesteps between logging events
 
-    nminibatches: int                 number of training minibatches per update. For recurrent policies, 
-                                      should be smaller or equal than number of environments run in parallel. 
+    nminibatches: int                 number of training minibatches per update. For recurrent policies,
+                                      should be smaller or equal than number of environments run in parallel.
 
     noptepochs: int                   number of training epochs per update
 
@@ -233,12 +223,6 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
     nbatch = nenvs * nsteps
     nbatch_train = nbatch // nminibatches
 
-    # if save_model_with_prefix:
-    #     if job_id is not None:
-    #         basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo2/'+job_id
-    #     else:
-    #         basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/ppo2/'
-    #
     make_model = lambda : Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
                     nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
                     max_grad_norm=max_grad_norm)
@@ -249,6 +233,7 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
     #         fh.write(cloudpickle.dumps(make_model))
     model = make_model()
     if load_path is not None:
+        print("Loading model from: ", load_path)
         model.load(load_path)
     runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, lam=lam)
 
