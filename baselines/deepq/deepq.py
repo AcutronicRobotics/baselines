@@ -11,20 +11,24 @@ import baselines.common.tf_util as U
 from baselines.common.tf_util import load_state, save_state
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
-from baselines.common.input import observation_input
+from baselines.common import set_global_seeds
 
 from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from baselines.deepq.utils import ObservationInput
+
+from baselines.common.tf_util import get_session
+from baselines.deepq.models import build_q_func
 
 
 class ActWrapper(object):
     def __init__(self, act, act_params):
         self._act = act
         self._act_params = act_params
+        self.initial_state = None
 
     @staticmethod
-    def load(path):
+    def load_act(path):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
         act = deepq.build_act(**act_params)
@@ -43,7 +47,10 @@ class ActWrapper(object):
     def __call__(self, *args, **kwargs):
         return self._act(*args, **kwargs)
 
-    def save(self, path=None):
+    def step(self, observation, **kwargs):
+        return self._act([observation], **kwargs), None, None, None
+
+    def save_act(self, path=None):
         """Save model to a pickle located at `path`"""
         if path is None:
             path = os.path.join(logger.get_dir(), "model.pkl")
@@ -62,8 +69,12 @@ class ActWrapper(object):
         with open(path, "wb") as f:
             cloudpickle.dump((model_data, self._act_params), f)
 
+    def save(self, path):
+        save_state(path)
+        self.save_act(path+".pickle")
 
-def load(path):
+
+def load_act(path):
     """Load act function that was returned by learn function.
 
     Parameters
@@ -77,13 +88,14 @@ def load(path):
         function that takes a batch of observations
         and returns actions.
     """
-    return ActWrapper.load(path)
+    return ActWrapper.load_act(path)
 
 
 def learn(env,
-          q_func,
+          network,
+          seed=None,
           lr=5e-4,
-          max_timesteps=100000,
+          total_timesteps=100000,
           buffer_size=50000,
           exploration_fraction=0.1,
           exploration_final_eps=0.02,
@@ -102,7 +114,13 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           param_noise=False,
           callback=None,
-          outdir = '/tmp/experiments/discrete/DQN/'):
+# <<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485:baselines/deepq/simple.py
+#           outdir = '/tmp/experiments/discrete/DQN/'):
+# =======
+          load_path=None,
+          **network_kwargs
+            ):
+# >>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490):baselines/deepq/deepq.py
     """Train a deepq model.
 
     Parameters
@@ -121,7 +139,7 @@ def learn(env,
         and returns a tensor of shape (batch_size, num_actions) with values of every action.
     lr: float
         learning rate for adam optimizer
-    max_timesteps: int
+    total_timesteps: int
         number of env steps to optimizer for
     buffer_size: int
         size of the replay buffer
@@ -155,14 +173,22 @@ def learn(env,
         initial value of beta for prioritized replay buffer
     prioritized_replay_beta_iters: int
         number of iterations over which beta will be annealed from initial value
-        to 1.0. If set to None equals to max_timesteps.
+        to 1.0. If set to None equals to total_timesteps.
     prioritized_replay_eps: float
         epsilon to add to the TD errors when updating priorities.
     callback: (locals, globals) -> None
         function called at every steps with state of the algorithm.
         If callback returns true training stops.
-    outdir: string
-        Just an output directory for tensorboard logs
+# <<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485:baselines/deepq/simple.py
+#     outdir: string
+#         Just an output directory for tensorboard logs
+# =======
+    load_path: str
+        path to load the model from. (default: None)
+    **network_kwargs
+        additional keyword arguments to pass to the network builder.
+
+# >>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490):baselines/deepq/deepq.py
     Returns
     -------
     act: ActWrapper
@@ -171,14 +197,17 @@ def learn(env,
     """
     # Create all the functions necessary to train the model
 
-    sess = tf.Session()
-    sess.__enter__()
+    sess = get_session()
+    set_global_seeds(seed)
+
+    q_func = build_q_func(network, **network_kwargs)
 
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
 
+    observation_space = env.observation_space
     def make_obs_ph(name):
-        return ObservationInput(env.observation_space, name=name)
+        return ObservationInput(observation_space, name=name)
 
     act, train, update_target, debug = deepq.build_train(
         make_obs_ph=make_obs_ph,
@@ -202,7 +231,7 @@ def learn(env,
     if prioritized_replay:
         replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
         if prioritized_replay_beta_iters is None:
-            prioritized_replay_beta_iters = max_timesteps
+            prioritized_replay_beta_iters = total_timesteps
         beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
                                        initial_p=prioritized_replay_beta0,
                                        final_p=1.0)
@@ -210,7 +239,7 @@ def learn(env,
         replay_buffer = ReplayBuffer(buffer_size)
         beta_schedule = None
     # Create the schedule for exploration starting from 1.
-    exploration = LinearSchedule(schedule_timesteps=int(exploration_fraction * max_timesteps),
+    exploration = LinearSchedule(schedule_timesteps=int(exploration_fraction * total_timesteps),
                                  initial_p=1.0,
                                  final_p=exploration_final_eps)
 
@@ -228,12 +257,17 @@ def learn(env,
 
         model_file = os.path.join(td, "model")
         model_saved = False
+
         if tf.train.latest_checkpoint(td) is not None:
             load_state(model_file)
             logger.log('Loaded model from {}'.format(model_file))
             model_saved = True
+        elif load_path is not None:
+            load_state(load_path)
+            logger.log('Loaded model from {}'.format(load_path))
 
-        for t in range(max_timesteps):
+
+        for t in range(total_timesteps):
             if callback is not None:
                 if callback(locals(), globals()):
                     break
@@ -261,15 +295,15 @@ def learn(env,
             obs = new_obs
 
             episode_rewards[-1] += rew
-            if done:
-                # Log the episode reward
-                summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1])])
-                summary_writer.add_summary(summary, t)
-                summary_writer.flush()
-
-                obs = env.reset()
-                episode_rewards.append(0.0)
-                reset = True
+            # if done:
+            #     # Log the episode reward
+            #     summary = tf.Summary(value=[tf.Summary.Value(tag="Episode reward", simple_value = episode_rewards[-1])])
+            #     summary_writer.add_summary(summary, t)
+            #     summary_writer.flush()
+            #
+            #     obs = env.reset()
+            #     episode_rewards.append(0.0)
+            #     reset = True
 
             if t > learning_starts and t % train_freq == 0:
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
