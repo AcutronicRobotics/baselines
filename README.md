@@ -58,33 +58,25 @@ python -m baselines.run --alg=ppo2 --env=Humanoid-v2 --network=mlp --num_timeste
 ```
 will set entropy coeffient to 0.1, and construct fully connected network with 3 layers with 32 hidden units in each, and create a separate network for value function estimation (so that its parameters are not shared with the policy network, but the structure is the same)
 
-See docstrings in [common/models.py](common/models.py) for description of network parameters for each type of model, and 
-docstring for [baselines/ppo2/ppo2.py/learn()](ppo2/ppo2.py) fir the description of the ppo2 hyperparamters. 
+See docstrings in [common/models.py](common/models.py) for description of network parameters for each type of model, and
+docstring for [baselines/ppo2/ppo2.py/learn()](ppo2/ppo2.py) fir the description of the ppo2 hyperparamters.
 
-### Example 2. DQN on Atari 
+### Example 2. DQN on Atari
 DQN with Atari is at this point a classics of benchmarks. To run the baselines implementation of DQN on Atari Pong:
 ```
 python -m baselines.run --alg=deepq --env=PongNoFrameskip-v4 --num_timesteps=1e6
 ```
 
 ## Saving, loading and visualizing models
-The algorithms serialization API is not properly unified yet; however, there is a simple method to save / restore trained models. 
-`--save_path` and `--load_path` command-line option loads the tensorflow state from a given path before training, and saves it after the training, respectively. 
+The algorithms serialization API is not properly unified yet; however, there is a simple method to save / restore trained models.
+`--save_path` and `--load_path` command-line option loads the tensorflow state from a given path before training, and saves it after the training, respectively.
 Let's imagine you'd like to train ppo2 on Atari Pong,  save the model and then later visualize what has it learnt.
 ```bash
-<<<<<<< HEAD
-    python -m baselines.run --alg=ppo2 --env=PongNoFrameskip-v4 --num-timesteps=2e7 --save_path=~/models/pong_20M_ppo2
-```
-This should get to the mean reward per episode about 5k. To load and visualize the model, we'll do the following - load the model, train it for 0 steps, and then visualize: 
-```bash
-    python -m baselines.run --alg=ppo2 --env=PongNoFrameskip-v4 --num-timesteps=0 --load_path=~/models/pong_20M_ppo2 --play
-=======
 python -m baselines.run --alg=ppo2 --env=PongNoFrameskip-v4 --num_timesteps=2e7 --save_path=~/models/pong_20M_ppo2
 ```
-This should get to the mean reward per episode about 5k. To load and visualize the model, we'll do the following - load the model, train it for 0 steps, and then visualize: 
+This should get to the mean reward per episode about 5k. To load and visualize the model, we'll do the following - load the model, train it for 0 steps, and then visualize:
 ```bash
 python -m baselines.run --alg=ppo2 --env=PongNoFrameskip-v4 --num_timesteps=0 --load_path=~/models/pong_20M_ppo2 --play
->>>>>>> 0961f5d... git subrepo pull (merge) baselines
 ```
 
 *NOTE:* At the moment Mujoco training uses VecNormalize wrapper for the environment which is not being saved correctly; so loading the models trained on Mujoco will not work well if the environment is recreated. If necessary, you can work around that by replacing RunningMeanStd by TfRunningMeanStd in [baselines/common/vec_env/vec_normalize.py](baselines/common/vec_env/vec_normalize.py#L12). This way, mean and std of environment normalizing wrapper will be saved in tensorflow variables and included in the model file; however, training is slower that way - hence not including it by default
@@ -100,17 +92,17 @@ python -m baselines.run --alg=ppo2 --env=PongNoFrameskip-v4 --num_timesteps=0 --
 - [GAIL](baselines/gail)
 - [HER](baselines/her)
 - [PPO1](baselines/ppo1) (obsolete version, left here temporarily)
-- [PPO2](baselines/ppo2) 
+- [PPO2](baselines/ppo2)
 - [TRPO](baselines/trpo_mpi)
 
 
 
 ## Benchmarks
-Results of benchmarks on Mujoco (1M timesteps) and Atari (10M timesteps) are available 
-[here for Mujoco](https://htmlpreview.github.com/?https://github.com/openai/baselines/blob/master/benchmarks_mujoco1M.htm) 
+Results of benchmarks on Mujoco (1M timesteps) and Atari (10M timesteps) are available
+[here for Mujoco](https://htmlpreview.github.com/?https://github.com/openai/baselines/blob/master/benchmarks_mujoco1M.htm)
 and
-[here for Atari](https://htmlpreview.github.com/?https://github.com/openai/baselines/blob/master/benchmarks_atari10M.htm) 
-respectively. Note that these results may be not on the latest version of the code, particular commit hash with which results were obtained is specified on the benchmarks page. 
+[here for Atari](https://htmlpreview.github.com/?https://github.com/openai/baselines/blob/master/benchmarks_atari10M.htm)
+respectively. Note that these results may be not on the latest version of the code, particular commit hash with which results were obtained is specified on the benchmarks page.
 
 To cite this repository in publications:
 
@@ -122,4 +114,3 @@ To cite this repository in publications:
       journal = {GitHub repository},
       howpublished = {\url{https://github.com/openai/baselines}},
     }
-

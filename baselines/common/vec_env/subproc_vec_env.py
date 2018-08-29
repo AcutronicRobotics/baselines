@@ -1,12 +1,6 @@
 import numpy as np
 from multiprocessing import Process, Pipe
-<<<<<<< HEAD
-from baselines.common.vec_env import VecEnv, CloudpickleWrapper
-from baselines.common.tile_images import tile_images
-
-=======
 from . import VecEnv, CloudpickleWrapper
->>>>>>> 14c1d69... Reduce duplication in VecEnv subclasses. (#38)
 
 def worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
@@ -80,10 +74,6 @@ class SubprocVecEnv(VecEnv):
             remote.send(('close', None))
         for p in self.ps:
             p.join()
-<<<<<<< HEAD
-        self.closed = True
-=======
->>>>>>> 14c1d69... Reduce duplication in VecEnv subclasses. (#38)
 
     def get_images(self):
         for pipe in self.remotes:

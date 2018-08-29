@@ -1,9 +1,5 @@
 from abc import ABC, abstractmethod
-<<<<<<< HEAD
-from baselines import logger
-=======
 from baselines.common.tile_images import tile_images
->>>>>>> 14c1d69... Reduce duplication in VecEnv subclasses. (#38)
 
 class AlreadySteppingError(Exception):
     """
@@ -92,9 +88,6 @@ class VecEnv(ABC):
         return self.step_wait()
 
     def render(self, mode='human'):
-<<<<<<< HEAD
-        logger.warn('Render not defined for %s'%self)
-=======
         imgs = self.get_images()
         bigimg = tile_images(imgs)
         if mode == 'human':
@@ -109,7 +102,6 @@ class VecEnv(ABC):
         Return RGB images from each environment
         """
         raise NotImplementedError
->>>>>>> 14c1d69... Reduce duplication in VecEnv subclasses. (#38)
 
     @property
     def unwrapped(self):
@@ -118,16 +110,12 @@ class VecEnv(ABC):
         else:
             return self
 
-<<<<<<< HEAD
-=======
     def get_viewer(self):
         if self.viewer is None:
             from gym.envs.classic_control import rendering
             self.viewer = rendering.SimpleImageViewer()
         return self.viewer
 
-
->>>>>>> 14c1d69... Reduce duplication in VecEnv subclasses. (#38)
 class VecEnvWrapper(VecEnv):
     def __init__(self, venv, observation_space=None, action_space=None):
         self.venv = venv
@@ -153,12 +141,10 @@ class VecEnvWrapper(VecEnv):
     def render(self, mode='human'):
         return self.venv.render(mode=mode)
 
-<<<<<<< HEAD
-=======
+
     def get_images(self):
         return self.venv.get_images()
 
->>>>>>> 14c1d69... Reduce duplication in VecEnv subclasses. (#38)
 class CloudpickleWrapper(object):
     """
     Uses cloudpickle to serialize contents (otherwise multiprocessing tries to use pickle)

@@ -1,5 +1,5 @@
 import sys
-import multiprocessing 
+import multiprocessing
 import os
 import os.path as osp
 import gym
@@ -7,13 +7,8 @@ from collections import defaultdict
 import tensorflow as tf
 
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
-<<<<<<< HEAD
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_mujoco_env, make_atari_env
 from baselines.common.tf_util import save_state, load_state, get_session
-=======
-from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env
-from baselines.common.tf_util import get_session
->>>>>>> bdd4d38... Fix result_plotters in vectorized mujoco environments (#533)
 from baselines import bench, logger
 from importlib import import_module
 
@@ -81,13 +76,8 @@ def train(args, extra_args):
 
 def build_env(args, render=False):
     ncpu = multiprocessing.cpu_count()
-<<<<<<< HEAD
     if sys.platform == 'darwin': ncpu //= 2
     nenv = args.num_env or ncpu if not render else 1
-=======
-    if sys.platform == 'darwin': ncpu /= 2
-    nenv = args.num_env or ncpu
->>>>>>> bdd4d38... Fix result_plotters in vectorized mujoco environments (#533)
     alg = args.alg
     rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
     seed = args.seed
