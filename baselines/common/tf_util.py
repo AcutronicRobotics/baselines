@@ -402,6 +402,7 @@ def _squeeze_shape(shape):
 
 def launch_tensorboard_in_background(log_dir):
 <<<<<<< HEAD
+<<<<<<< HEAD
     from tensorboard import main as tb
     import threading
     tf.flags.FLAGS.logdir = log_dir
@@ -412,3 +413,22 @@ def launch_tensorboard_in_background(log_dir):
    print(log_dir)
    p = subprocess.Popen(['tensorboard', '--logdir', log_dir])
 >>>>>>> 2507d33... Tensorboard util (#60)
+=======
+    '''
+    To log the Tensorflow graph when using rl-algs
+    algorithms, you can run the following code
+    in your main script:
+        import threading, time
+        def start_tensorboard(session):
+            time.sleep(10) # Wait until graph is setup
+            tb_path = osp.join(logger.get_dir(), 'tb')
+            summary_writer = tf.summary.FileWriter(tb_path, graph=session.graph)
+            summary_op = tf.summary.merge_all()
+            launch_tensorboard_in_background(tb_path)
+        session = tf.get_default_session()
+        t = threading.Thread(target=start_tensorboard, args=([session]))
+        t.start()
+    '''
+    import subprocess
+    subprocess.Popen(['tensorboard', '--logdir', log_dir])
+>>>>>>> e5de29a... instructions for tensorboard (#61)
