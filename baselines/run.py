@@ -1,9 +1,5 @@
 import sys
 import multiprocessing
-<<<<<<< HEAD
-import os
-=======
->>>>>>> 1937826... Fix alien syntax and apply PEP 8 style (#554)
 import os.path as osp
 import gym
 from collections import defaultdict
