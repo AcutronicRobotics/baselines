@@ -74,7 +74,7 @@ def train(args, extra_args):
 def build_env(args, render=False):
     ncpu = multiprocessing.cpu_count()
     if sys.platform == 'darwin': ncpu //= 2
-    nenv = args.num_env or ncpu if not render else 1
+    nenv = args.num_env or ncpu
     alg = args.alg
     rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
     seed = args.seed
