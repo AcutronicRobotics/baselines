@@ -1,6 +1,7 @@
 import numpy as np
 from gym import spaces
 from . import VecEnv
+from .util import copy_obs_dict, dict_to_obs, obs_space_info
 
 class DummyVecEnv(VecEnv):
     def __init__(self, env_fns):

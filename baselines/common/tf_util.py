@@ -393,27 +393,11 @@ def _check_shape(placeholder_shape, data_shape):
 def _squeeze_shape(shape):
     return [x for x in shape if x != 1]
 
-<<<<<<< HEAD
-=======
 # ================================================================
->>>>>>> 2507d33... Tensorboard util (#60)
 # Tensorboard interfacing
 # ================================================================
 
 def launch_tensorboard_in_background(log_dir):
-<<<<<<< HEAD
-<<<<<<< HEAD
-    from tensorboard import main as tb
-    import threading
-    tf.flags.FLAGS.logdir = log_dir
-    t = threading.Thread(target=tb.main, args=([]))
-    t.start()
-=======
-   import subprocess
-   print(log_dir)
-   p = subprocess.Popen(['tensorboard', '--logdir', log_dir])
->>>>>>> 2507d33... Tensorboard util (#60)
-=======
     '''
     To log the Tensorflow graph when using rl-algs
     algorithms, you can run the following code
@@ -431,4 +415,3 @@ def launch_tensorboard_in_background(log_dir):
     '''
     import subprocess
     subprocess.Popen(['tensorboard', '--logdir', log_dir])
->>>>>>> e5de29a... instructions for tensorboard (#61)
