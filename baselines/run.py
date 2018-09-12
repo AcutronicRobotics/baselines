@@ -153,9 +153,6 @@ def get_default_network(env_type):
     else:
         return 'mlp'
 
-    raise ValueError('Unknown env_type {}'.format(env_type))
-
-
 def get_alg_module(alg, submodule=None):
     submodule = submodule or alg
     try:
@@ -181,16 +178,21 @@ def get_learn_function_defaults(alg, env_type):
     return kwargs
 
 
-def parse(v):
-    '''
-    convert value of a command-line arg to a python object if possible, othewise, keep as string
-    '''
 
-    assert isinstance(v, str)
-    try:
-        return eval(v)
-    except (NameError, SyntaxError):
-        return v
+def parse_cmdline_kwargs(args):
+    '''
+    convert a list of '='-spaced command-line arguments to a dictionary, evaluating python objects when possible
+    '''
+    def parse(v):
+
+        assert isinstance(v, str)
+        try:
+            return eval(v)
+        except (NameError, SyntaxError):
+            return v
+
+    return {k: parse(v) for k,v in parse_unknown_args(args).items()}
+
 
 
 def main():
@@ -198,7 +200,7 @@ def main():
 
     arg_parser = common_arg_parser()
     args, unknown_args = arg_parser.parse_known_args()
-    extra_args = {k: parse(v) for k, v in parse_unknown_args(unknown_args).items()}
+    extra_args = parse_cmdline_kwargs(unknown_args)
 
     if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
         rank = 0
