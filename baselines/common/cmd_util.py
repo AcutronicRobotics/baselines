@@ -29,7 +29,7 @@ def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_ind
         def _thunk():
             env = make_atari(env_id) if env_type == 'atari' else gym.make(env_id)
             env.seed(seed + 10000*mpi_rank + rank if seed is not None else None)
-            env = Monitor(env, 
+            env = Monitor(env,
                           logger.get_dir() and os.path.join(logger.get_dir(), str(mpi_rank) + '.' + str(rank)),
                           allow_early_resets=True)
 
@@ -120,11 +120,18 @@ def parse_unknown_args(args):
     Parse arguments not consumed by arg parser into a dicitonary
     """
     retval = {}
+    preceded_by_key = False
     for arg in args:
-        assert arg.startswith('--')
-        assert '=' in arg, 'cannot parse arg {}'.format(arg)
-        key = arg.split('=')[0][2:]
-        value = arg.split('=')[1]
-        retval[key] = value
+        if arg.startswith('--'):
+            if '=' in arg:
+                key = arg.split('=')[0][2:]
+                value = arg.split('=')[1]
+                retval[key] = value
+            else:
+                key = arg[2:]
+                preceded_by_key = True
+        elif preceded_by_key:
+            retval[key] = arg
+            preceded_by_key = False
 
     return retval

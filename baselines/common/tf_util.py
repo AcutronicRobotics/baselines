@@ -312,13 +312,19 @@ def get_available_gpus():
 # ================================================================
 
 def load_state(fname, sess=None):
+    from baselines import logger
+    logger.warn('load_state method is deprecated, please use load_variables instead')
     sess = sess or get_session()
     saver = tf.train.Saver()
     saver.restore(tf.get_default_session(), fname)
 
 def save_state(fname, sess=None):
+    from baselines import logger
+    logger.warn('save_state method is deprecated, please use save_variables instead')
     sess = sess or get_session()
-    os.makedirs(os.path.dirname(fname), exist_ok=True)
+    dirname = os.path.dirname(fname)
+    if any(dirname):
+        os.makedirs(dirname, exist_ok=True)
     saver = tf.train.Saver()
     saver.save(tf.get_default_session(), fname)
 
@@ -331,7 +337,9 @@ def save_variables(save_path, variables=None, sess=None):
 
     ps = sess.run(variables)
     save_dict = {v.name: value for v, value in zip(variables, ps)}
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    dirname = os.path.dirname(save_path)
+    if any(dirname):
+        os.makedirs(dirname, exist_ok=True)
     joblib.dump(save_dict, save_path)
 
 def load_variables(load_path, variables=None, sess=None):
@@ -340,10 +348,15 @@ def load_variables(load_path, variables=None, sess=None):
 
     loaded_params = joblib.load(os.path.expanduser(load_path))
     restores = []
-    for v in variables:
-        restores.append(v.assign(loaded_params[v.name]))
-    sess.run(restores)
+    if isinstance(loaded_params, list):
+        assert len(loaded_params) == len(variables), 'number of variables loaded mismatches len(variables)'
+        for d, v in zip(loaded_params, variables):
+            restores.append(v.assign(d))
+    else:
+        for v in variables:
+            restores.append(v.assign(loaded_params[v.name]))
 
+    sess.run(restores)
 
 # ================================================================
 # Shape adjustment for feeding into tf placeholders

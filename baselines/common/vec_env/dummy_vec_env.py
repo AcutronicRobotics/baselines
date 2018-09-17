@@ -4,7 +4,18 @@ from . import VecEnv
 from .util import copy_obs_dict, dict_to_obs, obs_space_info
 
 class DummyVecEnv(VecEnv):
+    """
+    VecEnv that does runs multiple environments sequentially, that is,
+    the step and reset commands are send to one environment at a time.
+    Useful when debugging and when num_env == 1 (in the latter case,
+    avoids communication overhead)
+    """
     def __init__(self, env_fns):
+        """
+        Arguments:
+
+        env_fns: iterable of callables      functions that build environments
+        """
         self.envs = [fn() for fn in env_fns]
         env = self.envs[0]
         VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
@@ -12,17 +23,7 @@ class DummyVecEnv(VecEnv):
         self.keys = []
         obs_space = env.observation_space
 
-        if isinstance(obs_space, spaces.Dict):
-            assert isinstance(obs_space.spaces, OrderedDict)
-            subspaces = obs_space.spaces
-        else:
-            subspaces = {None: obs_space}
-
-        for key, box in subspaces.items():
-            shapes[key] = box.shape
-            dtypes[key] = box.dtype
-            self.keys.append(key)
-
+        self.keys, shapes, dtypes = obs_space_info(obs_space)
         self.buf_obs = { k: np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]) for k in self.keys }
         self.buf_dones = np.zeros((self.num_envs,), dtype=np.bool)
         self.buf_rews  = np.zeros((self.num_envs,), dtype=np.float32)
@@ -62,9 +63,6 @@ class DummyVecEnv(VecEnv):
             self._save_obs(e, obs)
         return self._obs_from_buf()
 
-    def close(self):
-        return
-
     def _save_obs(self, e, obs):
         for k in self.keys:
             if k is None:
@@ -77,3 +75,9 @@ class DummyVecEnv(VecEnv):
 
     def get_images(self):
         return [env.render(mode='rgb_array') for env in self.envs]
+
+    def render(self, mode='human'):
+        if self.num_envs == 1:
+            self.envs[0].render(mode=mode)
+        else:
+            super().render(mode=mode)
