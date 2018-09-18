@@ -1,3 +1,4 @@
+import re
 from setuptools import setup, find_packages
 from functools import reduce
 import sys
@@ -50,6 +51,6 @@ setup(name='baselines',
 try:
     from distutils.version import StrictVersion
     import tensorflow
-    assert StrictVersion(tensorflow.__version__) >= StrictVersion('1.4.0')
+    assert StrictVersion(re.sub(r'-rc\d+$', '', tensorflow.__version__)) >= StrictVersion('1.4.0')
 except ImportError:
     assert False, "TensorFlow needed, of version above 1.4"
