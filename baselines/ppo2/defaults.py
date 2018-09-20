@@ -21,7 +21,7 @@ def atari():
         cliprange=lambda f : f * 0.1,
     )
 
-def modcobot():
+def mara():
     return dict(
         num_layers = 4,
         num_hidden = 128,
