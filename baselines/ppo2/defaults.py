@@ -26,7 +26,7 @@ def mara():
         num_layers = 4,
         num_hidden = 128,
         nsteps=2048,
-        nminibatches=32,
+        nminibatches=256,
         lam=0.95,
         gamma=0.99,
         noptepochs=10,
