@@ -23,6 +23,8 @@ def atari():
 
 def modcobot():
     return dict(
+        num_layers = 4,
+        num_hidden = 128,
         nsteps=2048,
         nminibatches=32,
         lam=0.95,
