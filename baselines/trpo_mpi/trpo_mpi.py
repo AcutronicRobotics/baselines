@@ -97,17 +97,10 @@ def learn(*,
         cg_damping=1e-2,
         vf_stepsize=3e-4,
         vf_iters =3,
-# <<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485
-#         max_timesteps=0, max_episodes=0, max_iters=0,  # time constraint
-#         callback=None,
-#         save_model_with_prefix,
-#         outdir="/tmp/rosrl/experiments/continuous/trpo/"
-# =======
         max_episodes=0, max_iters=0,  # time constraint
         callback=None,
         load_path=None,
         **network_kwargs
-# >>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490)
         ):
     '''
     learn a policy function with TRPO algorithm
