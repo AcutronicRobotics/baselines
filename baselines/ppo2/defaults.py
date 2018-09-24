@@ -34,5 +34,11 @@ def mara():
         ent_coef=0.0,
         lr=lambda f: 3e-4 * f,
         cliprange=0.2,
-        value_network='copy'
+        vf_coef=0.5,
+        seed=0,
+        max_grad_norm=0.5,
+        value_network='copy',
+        network='mlp',
+        total_timesteps=1e8,
+        save_interval=10
     )
