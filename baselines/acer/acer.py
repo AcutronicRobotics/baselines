@@ -210,7 +210,7 @@ class Model(object):
 
             return names_ops, sess.run(run_ops, td_map)[1:]  # strip off _train
 
-        def _step(observation, **kwargs):
+        def step(observation, **kwargs):
             return step_model._evaluate([step_model.action, step_model_p, step_model.state], observation, **kwargs)
 
 
@@ -219,7 +219,7 @@ class Model(object):
         self.save = functools.partial(save_variables, sess=sess, variables=params)
         self.train_model = train_model
         self.step_model = step_model
-        self._step = _step
+        self.step = step
         self.step = self.step_model.step
 
         self.initial_state = step_model.initial_state

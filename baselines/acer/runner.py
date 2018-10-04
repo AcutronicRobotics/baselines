@@ -27,7 +27,7 @@ class Runner(AbstractEnvRunner):
         enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards = [], [], [], [], []
         for _ in range(self.nsteps):
-            actions, mus, states = self.model._step(self.obs, S=self.states, M=self.dones)
+            actions, mus, states = self.model.step(self.obs, S=self.states, M=self.dones)
             mb_obs.append(np.copy(self.obs))
             mb_actions.append(actions)
             mb_mus.append(mus)
