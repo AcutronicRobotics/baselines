@@ -90,6 +90,14 @@ class VecEnv(ABC):
         self.step_async(actions)
         return self.step_wait()
 
+    def step_collisions(self, actions):
+        self.step_async(actions)
+        return self.step_wait_collisions()
+
+    def step_runtime(self, actions):
+        self.step_async(actions)
+        return self.step_wait_runtime()
+
     def render(self, mode='human'):
         imgs = self.get_images()
         bigimg = tile_images(imgs)

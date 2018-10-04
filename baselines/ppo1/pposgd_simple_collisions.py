@@ -52,10 +52,10 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         collided = True
         while collided:
             if i == 0:
-                prev_ac = prevacs[i]
+                ac = prevacs[i]
             else:
-                prev_ac = prevacs[i-1]
-            ob, rew, new, collided, _ = env.step(ac, prev_ac)
+                ac = prevacs[i-1]
+            ob, rew, new, collided, _ = env.step(ac)
         rews[i] = rew
 
         cur_ep_ret += rew

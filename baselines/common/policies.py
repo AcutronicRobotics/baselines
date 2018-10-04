@@ -96,6 +96,12 @@ class PolicyWithValue(object):
             state = None
         return a, v, state, neglogp
 
+    def step_deterministic(self, observation, **extra_feed):
+        a, v, state, neglogp = self._evaluate([self.mode, self.vf, self.state, self.neglogp], observation, **extra_feed)
+        if state.size == 0:
+            state = None
+        return a, v, state, neglogp
+
     def value(self, ob, *args, **kwargs):
         """
         Compute value estimate(s) given the observation(s)
