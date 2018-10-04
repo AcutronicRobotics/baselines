@@ -44,7 +44,7 @@ class MonitorRobotics(Wrapper):
         if robotics:
             self.max_episode_steps = env.max_episode_steps #used for acktr which should match with the enviroment
 
-    def _reset(self, **kwargs):
+    def reset(self, **kwargs):
         if not self.allow_early_resets and not self.needs_reset:
             raise RuntimeError("Tried to reset an environment before done. If you want to allow early resets, wrap your env with MonitorRobotics(env, path, allow_early_resets=True)")
         self.rewards = []
@@ -56,7 +56,7 @@ class MonitorRobotics(Wrapper):
             self.current_reset_info[k] = v
         return self.env.reset(**kwargs)
 
-    def _step(self, action):
+    def step(self, action):
         if self.needs_reset:
             raise RuntimeError("Tried to step environment that needs reset")
         ob, rew, done, info = self.env.step(action)
