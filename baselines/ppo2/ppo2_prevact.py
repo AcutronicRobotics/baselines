@@ -109,13 +109,10 @@ class Runner(AbstractEnvRunner):
             mb_dones.append(self.dones)
             collided = True
             while collided:
-                if len(mb_actions) == 1:
-                    actions = mb_actions[len(mb_actions)-1]
-                else:
+                if len(mb_actions) != 1:
                     actions = mb_actions[len(mb_actions)-3]
                 self.obs[:], rewards, self.dones, collided, infos = self.env.step_collisions(actions)
 
-            # self.obs[:], rewards, self.dones, infos = self.env.step(actions)
             for info in infos:
                 maybeepinfo = info.get('episode')
                 if maybeepinfo: epinfos.append(maybeepinfo)
