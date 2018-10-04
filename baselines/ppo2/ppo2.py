@@ -342,7 +342,7 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
                     slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
                     mblossvals.append(model.train(lrnow, cliprangenow, *slices))
         else: # recurrent version
-            print("I am in reccurent version")
+            # print("I am in reccurent version")
             assert nenvs % nminibatches == 0
             envsperbatch = nenvs // nminibatches
             envinds = np.arange(nenvs)
