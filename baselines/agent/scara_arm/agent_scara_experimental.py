@@ -103,7 +103,7 @@ class AgentSCARAROS(object):
         self.reset_joint_angles = [None for _ in range(1)]
 
         # taken from mujoco in OpenAi how to initialize observation space and action space.
-        observation, _reward, done, _info = self._step(np.zeros(self.scara_chain.getNrOfJoints()))
+        observation, _reward, done, _info = self.step(np.zeros(self.scara_chain.getNrOfJoints()))
         assert not done
         self.obs_dim = observation.size
         print(self.obs_dim)
@@ -273,7 +273,7 @@ class AgentSCARAROS(object):
 
             return observations, ee_points
     # initialize the steps
-    def _step(self, action):
+    def step(self, action):
         time_step = 0
         ee_points = None
         self.ob = None
