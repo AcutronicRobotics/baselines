@@ -113,13 +113,9 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           param_noise=False,
           callback=None,
-# <<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485:baselines/deepq/simple.py
-#           outdir = '/tmp/experiments/discrete/DQN/'):
-# =======
           load_path=None,
           **network_kwargs
             ):
-# >>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490):baselines/deepq/deepq.py
     """Train a deepq model.
 
     Parameters
@@ -178,16 +174,11 @@ def learn(env,
     callback: (locals, globals) -> None
         function called at every steps with state of the algorithm.
         If callback returns true training stops.
-# <<<<<<< a454b0a9399c7ca1b3a82eb9bca0f16222583485:baselines/deepq/simple.py
-#     outdir: string
-#         Just an output directory for tensorboard logs
-# =======
     load_path: str
         path to load the model from. (default: None)
     **network_kwargs
         additional keyword arguments to pass to the network builder.
 
-# >>>>>>> refactor a2c, acer, acktr, ppo2, deepq, and trpo_mpi (#490):baselines/deepq/deepq.py
     Returns
     -------
     act: ActWrapper
