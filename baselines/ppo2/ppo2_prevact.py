@@ -164,20 +164,21 @@ class Runner(AbstractEnvRunner):
         mb_states = self.states
         epinfos = []
         # For n in range number of steps
+        collided = False
         for _ in range(self.nsteps):
             # Given observations, get action value and neglopacs
             # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
             actions, values, self.states, neglogpacs = self.model.step(self.obs, S=self.states, M=self.dones)
+            if collided and len(mb_actions) > 2:
+                actions = mb_actions[len(mb_actions)-2]
+
             mb_obs.append(self.obs.copy())
             mb_actions.append(actions)
             mb_values.append(values)
             mb_neglogpacs.append(neglogpacs)
             mb_dones.append(self.dones)
-            collided = True
-            while collided:
-                if len(mb_actions) != 1:
-                    actions = mb_actions[len(mb_actions)-3]
-                self.obs[:], rewards, self.dones, collided, infos = self.env.step_collisions(actions)
+
+            self.obs[:], rewards, self.dones, collided, infos = self.env.step_collisions(actions)
 
             for info in infos:
                 maybeepinfo = info.get('episode')
