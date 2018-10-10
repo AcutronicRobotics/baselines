@@ -63,9 +63,9 @@ class Monitor(Wrapper):
         return (ob, rew, done, collision, info)
 
     def step_runtime(self, action):
-        ob, rew, done, collided, info = self.env.step(action)
+        ob, rew, done, info = self.env.step(action)
         self.update(ob, rew, done, info)
-        return (ob, rew, done, collided, info)
+        return (ob, rew, done, info)
 
     def update(self, ob, rew, done, info):
         self.rewards.append(rew)
