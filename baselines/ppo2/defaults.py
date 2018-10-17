@@ -45,7 +45,7 @@ def mara():
 
 def mara_lstm():
     return dict(
-        nsteps=2048,
+        nsteps=1,
         nminibatches=1, #batchsize = nevn * nsteps // nminibatches
         lam=0.95,
         gamma=0.99,
