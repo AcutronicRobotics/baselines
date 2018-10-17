@@ -6,7 +6,7 @@ Baselines is a fork of OpenAI's baselines repository with a set of high-quality 
 | -------- | ------- | -------- | -------- |
 |[A2C](baselines/a2c) |  | discrete | |
 |[A3C](baselines/a3c) |  | discrete | |
-|[ACKTR](baselines/acktr) | **working** | continuous, discrete | [continuous](https://github.com/erlerobot/ros_rl/tree/master/examples/modular_scara_3dof_v3/train_acktr.py) |  
+|[ACKTR](baselines/acktr) | **working** | continuous, discrete | [continuous](https://github.com/erlerobot/ros_rl/tree/master/examples/modular_scara_3dof_v3/train_acktr.py) |
 |[DDPG](baselines/ddpg) | **working** | continuous | |
 |[DQN](baselines/deepq) | **working** | discrete | |
 |[DQN+NAF](https://github.com/erlerobot/continuous-deep-q-learning) | **working** (requires Tensorflow `1.3.0`) | continuous | |
@@ -14,6 +14,35 @@ Baselines is a fork of OpenAI's baselines repository with a set of high-quality 
 |[TRPO](baselines/trpo_mpi) | **working** | continuous | |
 |[VPG](baselines/vpg) | **not working** | continuous | [MountainCarContinuous](baselines/vpg/train_mountaincarcontinuous.py) |
 
+## Prerequisites
+Baselines requires python3 (>=3.5) with the development headers. You'll also need system packages CMake, OpenMPI and zlib. Those can be installed as follows
+### Ubuntu
+
+```bash
+sudo apt-get update && sudo apt-get install cmake libopenmpi-dev python3-dev zlib1g-dev
+```
+
+### Mac OS X
+Installation of system packages on Mac requires [Homebrew](https://brew.sh). With Homebrew installed, run the following:
+```bash
+brew install cmake openmpi
+```
+
+## Virtual environment
+From the general python package sanity perspective, it is a good idea to use virtual environments (virtualenvs) to make sure packages from different projects do not interfere with each other. You can install virtualenv (which is itself a pip package) via
+```bash
+pip install virtualenv
+```
+Virtualenvs are essentially folders that have copies of python executable and all python packages.
+To create a virtualenv called venv with python3, one runs
+```bash
+virtualenv /path/to/venv --python=python3
+```
+To activate a virtualenv:
+```
+. /path/to/venv/bin/activate
+```
+More thorough tutorial on virtualenvs and options can be found [here](https://virtualenv.pypa.io/en/stable/)
 
 ## Install
 
@@ -64,7 +93,7 @@ The hyperparameters for both network and the learning algorithm can be controlle
 ```bash
 python -m baselines.run --alg=ppo2 --env=Humanoid-v2 --network=mlp --num_timesteps=2e7 --ent_coef=0.1 --num_hidden=32 --num_layers=3 --value_network=copy
 ```
-will set entropy coeffient to 0.1, and construct fully connected network with 3 layers with 32 hidden units in each, and create a separate network for value function estimation (so that its parameters are not shared with the policy network, but the structure is the same)
+will set entropy coefficient to 0.1, and construct fully connected network with 3 layers with 32 hidden units in each, and create a separate network for value function estimation (so that its parameters are not shared with the policy network, but the structure is the same)
 
 See docstrings in [common/models.py](baselines/common/models.py) for description of network parameters for each type of model, and
 docstring for [baselines/ppo2/ppo2.py/learn()](baselines/ppo2/ppo2.py#L152) for the description of the ppo2 hyperparamters.
