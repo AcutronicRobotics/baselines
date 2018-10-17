@@ -45,7 +45,7 @@ def mara():
 
 def mara_lstm():
     return dict(
-        nsteps=1,
+        nsteps=2048,
         nminibatches=1, #batchsize = nevn * nsteps // nminibatches
         lam=0.95,
         gamma=0.99,
@@ -59,8 +59,8 @@ def mara_lstm():
         max_grad_norm=0.5,
         value_network='shared',
         network='lstm',
-        nlstm=128,
-        layer_norm=False,
+        nlstm=256,
+        layer_norm=True,
         total_timesteps=1e8,
         save_interval=10
     )
