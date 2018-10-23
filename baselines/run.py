@@ -90,9 +90,7 @@ def build_env(args, render=False):
     env_type, env_id = get_env_type(args.env)
 
     if env_type in {'atari', 'retro'}:
-        if alg == 'acer':
-            env = make_vec_env(env_id, env_type, nenv, seed)
-        elif alg == 'deepq':
+        if alg == 'deepq':
             env = make_env(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': True})
         elif alg == 'trpo_mpi':
             env = make_env(env_id, env_type, seed=seed)
