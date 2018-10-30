@@ -42,3 +42,5 @@ def mara():
         total_timesteps=1e8,
         save_interval=10
     )
+def retro():
+    return atari()
