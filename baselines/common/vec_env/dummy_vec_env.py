@@ -30,6 +30,7 @@ class DummyVecEnv(VecEnv):
         self.buf_obs = { k: np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]) for k in self.keys }
         self.buf_dones = np.zeros((self.num_envs,), dtype=np.bool)
         self.buf_rews  = np.zeros((self.num_envs,), dtype=np.float32)
+        self.buf_collisions = np.zeros((self.num_envs,), dtype=np.bool)
         self.buf_infos = [{} for _ in range(self.num_envs)]
         self.actions = None
 
@@ -56,6 +57,30 @@ class DummyVecEnv(VecEnv):
             obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e] = self.envs[e].step(action)
             if self.buf_dones[e]:
                 obs = self.envs[e].reset()
+            self._save_obs(e, obs)
+        return (np.copy(self._obs_from_buf()), np.copy(self.buf_rews), np.copy(self.buf_dones),
+                self.buf_infos.copy())
+
+    def step_wait_collisions(self):
+        for e in range(self.num_envs):
+            action = self.actions[e]
+            if isinstance(self.envs[e].action_space, spaces.Discrete):
+                action = int(action)
+
+            obs, self.buf_rews[e], self.buf_dones[e], self.buf_collisions[e], self.buf_infos[e] = self.envs[e].step_collisions(action)
+            if self.buf_dones[e]:
+                obs = self.envs[e].reset()
+            self._save_obs(e, obs)
+        return (np.copy(self._obs_from_buf()), np.copy(self.buf_rews), np.copy(self.buf_dones),
+                np.copy(self.buf_collisions), self.buf_infos.copy())
+
+    def step_wait_runtime(self):
+        for e in range(self.num_envs):
+            action = self.actions[e]
+            if isinstance(self.envs[e].action_space, spaces.Discrete):
+                action = int(action)
+
+            obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e] = self.envs[e].step_runtime(action)
             self._save_obs(e, obs)
         return (np.copy(self._obs_from_buf()), np.copy(self.buf_rews), np.copy(self.buf_dones),
                 self.buf_infos.copy())

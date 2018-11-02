@@ -34,6 +34,32 @@ class VecNormalize(VecEnvWrapper):
         self.ret[news] = 0.
         return obs, rews, news, infos
 
+    def step_wait_collisions(self):
+        """
+        Apply sequence of actions to sequence of environments
+        actions -> (observations, rewards, news)
+
+        where 'news' is a boolean vector indicating whether each element is new.
+        """
+        obs, rews, news, collisions, infos = self.venv.step_wait_collisions()
+        self.ret = self.ret * self.gamma + rews
+        obs = self._obfilt(obs)
+        if self.ret_rms:
+            self.ret_rms.update(self.ret)
+            rews = np.clip(rews / np.sqrt(self.ret_rms.var + self.epsilon), -self.cliprew, self.cliprew)
+        self.ret[news] = 0.
+        return obs, rews, news, collisions, infos
+
+    def step_wait_runtime(self):
+        obs, rews, news, infos = self.venv.step_wait_runtime()
+        self.ret = self.ret * self.gamma + rews
+        obs = self._obfilt(obs)
+        if self.ret_rms:
+            self.ret_rms.update(self.ret)
+            rews = np.clip(rews / np.sqrt(self.ret_rms.var + self.epsilon), -self.cliprew, self.cliprew)
+        self.ret[news] = 0.
+        return obs, rews, news, infos
+
     def _obfilt(self, obs):
         if self.ob_rms:
             self.ob_rms.update(obs)
