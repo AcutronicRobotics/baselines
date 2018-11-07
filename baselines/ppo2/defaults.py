@@ -20,6 +20,8 @@ def atari():
         lr=lambda f : f * 2.5e-4,
         cliprange=lambda f : f * 0.1,
     )
+def retro():
+   return atari()
 
 def mara():
     return dict(
@@ -42,5 +44,25 @@ def mara():
         total_timesteps=1e8,
         save_interval=10
     )
-def retro():
-    return atari()
+
+def mara_lstm():
+    return dict(
+        nsteps=2048,
+        nminibatches=1, #batchsize = nevn * nsteps // nminibatches
+        lam=0.95,
+        gamma=0.99,
+        noptepochs=10,
+        log_interval=1,
+        ent_coef=0.0,
+        lr=lambda f: 3e-4 * f,
+        cliprange=0.2,
+        vf_coef=0.5,
+        seed=0,
+        max_grad_norm=0.5,
+        value_network='shared',
+        network='lstm',
+        nlstm=256,
+        layer_norm=True,
+        total_timesteps=1e8,
+        save_interval=10
+    )

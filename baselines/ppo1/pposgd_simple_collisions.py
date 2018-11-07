@@ -28,6 +28,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     news = np.zeros(horizon, 'int32')
     acs = np.array([ac for _ in range(horizon)])
     prevacs = acs.copy()
+    collided = False
 
     while True:
         prevac = ac
@@ -49,13 +50,10 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         news[i] = new
         acs[i] = ac
         prevacs[i] = prevac
-        collided = True
-        while collided:
-            if i == 0:
-                prev_ac = prevacs[i]
-            else:
-                prev_ac = prevacs[i-1]
-            ob, rew, new, collided, _ = env.step(ac, prev_ac)
+        if collided and i > 2:
+            ac = prevacs[i-2]
+            # prevac = ac
+        ob, rew, new, collided, _ = env.step(ac)
         rews[i] = rew
 
         cur_ep_ret += rew

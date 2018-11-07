@@ -10,15 +10,11 @@ from baselines.common import explained_variance, set_global_seeds
 from baselines.common.policies import build_policy
 from baselines.common.runners import AbstractEnvRunner
 from baselines.common.tf_util import get_session, save_variables, load_variables
+from baselines.common.mpi_adam_optimizer import MpiAdamOptimizer
 
-try:
-    from baselines.common.mpi_adam_optimizer import MpiAdamOptimizer
-    from mpi4py import MPI
-    from baselines.common.mpi_util import sync_from_root
-except ImportError:
-    MPI = None
-
+from mpi4py import MPI
 from baselines.common.tf_util import initialize
+from baselines.common.mpi_util import sync_from_root
 
 class Model(object):
     """
@@ -97,10 +93,7 @@ class Model(object):
         # 1. Get the model parameters
         params = tf.trainable_variables('ppo2_model')
         # 2. Build our trainer
-        if MPI is not None:
-            trainer = MpiAdamOptimizer(MPI.COMM_WORLD, learning_rate=LR, epsilon=1e-5)
-        else:
-            trainer = tf.train.AdamOptimizer(learning_rate=LR, epsilon=1e-5)
+        trainer = MpiAdamOptimizer(MPI.COMM_WORLD, learning_rate=LR, epsilon=1e-5)
         # 3. Calculate the gradients
         grads_and_var = trainer.compute_gradients(loss, params)
         grads, var = zip(*grads_and_var)
@@ -144,12 +137,10 @@ class Model(object):
         self.save = functools.partial(save_variables, sess=sess)
         self.load = functools.partial(load_variables, sess=sess)
 
-        if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
+        if MPI.COMM_WORLD.Get_rank() == 0:
             initialize()
         global_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="")
-
-        if MPI is not None:
-            sync_from_root(sess, global_variables) #pylint: disable=E1101
+        sync_from_root(sess, global_variables) #pylint: disable=E1101
 
 class Runner(AbstractEnvRunner):
     """
@@ -173,19 +164,22 @@ class Runner(AbstractEnvRunner):
         mb_states = self.states
         epinfos = []
         # For n in range number of steps
+        collided = False
         for _ in range(self.nsteps):
             # Given observations, get action value and neglopacs
             # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
             actions, values, self.states, neglogpacs = self.model.step(self.obs, S=self.states, M=self.dones)
+            if collided and len(mb_actions) > 2:
+                actions = mb_actions[len(mb_actions)-2]
+
             mb_obs.append(self.obs.copy())
             mb_actions.append(actions)
             mb_values.append(values)
             mb_neglogpacs.append(neglogpacs)
             mb_dones.append(self.dones)
 
-            # Take actions in env and look the results
-            # Infos contains a ton of useful informations
-            self.obs[:], rewards, self.dones, infos = self.env.step(actions)
+            self.obs[:], rewards, self.dones, collided, infos = self.env.step_collisions(actions)
+
             for info in infos:
                 maybeepinfo = info.get('episode')
                 if maybeepinfo: epinfos.append(maybeepinfo)
@@ -198,7 +192,6 @@ class Runner(AbstractEnvRunner):
         mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
         mb_dones = np.asarray(mb_dones, dtype=np.bool)
         last_values = self.model.value(self.obs, S=self.states, M=self.dones)
-
         # discount/bootstrap off value fn
         mb_returns = np.zeros_like(mb_rewards)
         mb_advs = np.zeros_like(mb_rewards)
@@ -402,9 +395,9 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             logger.logkv('time_elapsed', tnow - tfirststart)
             for (lossval, lossname) in zip(lossvals, model.loss_names):
                 logger.logkv(lossname, lossval)
-            if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
+            if MPI.COMM_WORLD.Get_rank() == 0:
                 logger.dumpkvs()
-        if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir() and (MPI is None or MPI.COMM_WORLD.Get_rank() == 0):
+        if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir() and MPI.COMM_WORLD.Get_rank() == 0:
             checkdir = osp.join(logger.get_dir(), 'checkpoints')
             os.makedirs(checkdir, exist_ok=True)
             savepath = osp.join(checkdir, '%.5i'%update)

@@ -55,6 +55,18 @@ class Monitor(Wrapper):
         self.update(ob, rew, done, info)
         return (ob, rew, done, info)
 
+    def step_collisions(self, action):
+        if self.needs_reset:
+            raise RuntimeError("Tried to step environment that needs reset")
+        ob, rew, done, collision, info = self.env.step(action)
+        self.update(ob, rew, done, info)
+        return (ob, rew, done, collision, info)
+
+    def step_runtime(self, action):
+        ob, rew, done, info = self.env.step(action)
+        self.update(ob, rew, done, info)
+        return (ob, rew, done, info)
+
     def update(self, ob, rew, done, info):
         self.rewards.append(rew)
         if done:
