@@ -54,6 +54,7 @@ def mara_lstm():
         # nan < 1024
         # gpu > 512
         nsteps=2048,
+        #otherwise, last minibatch gets noisy gradient
         nminibatches=1, #batchsize = nevn * nsteps // nminibatches
         lam=0.95,
         gamma=0.99,

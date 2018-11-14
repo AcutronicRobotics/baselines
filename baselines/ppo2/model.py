@@ -116,6 +116,7 @@ class Model(object):
         self.train_model = train_model
         self.act_model = act_model
         self.step = act_model.step
+        self.step_deterministic = act_model.step_deterministic
         self.value = act_model.value
         self.initial_state = act_model.initial_state
 
@@ -154,4 +155,3 @@ class Model(object):
             self.stats_list + [self._train_op],
             td_map
         )[:-1]
-
