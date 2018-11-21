@@ -1,3 +1,7 @@
+**Status:** Active (under active development, breaking changes may occur)
+
+<img src="data/logo.jpg" width=25% align="right" /> [![Build status](https://travis-ci.org/erlerobot/baselines.svg?branch=master)](https://travis-ci.org/erlerobot/baselines)
+
 # Baselines
 
 Baselines is a fork of OpenAI's baselines repository with a set of high-quality implementations of reinforcement learning algorithms. The algorithms modified to be used in robotics.
@@ -119,7 +123,7 @@ python -m baselines.run --alg=ppo2 --env=PongNoFrameskip-v4 --num_timesteps=0 --
 *NOTE:* At the moment Mujoco training uses VecNormalize wrapper for the environment which is not being saved correctly; so loading the models trained on Mujoco will not work well if the environment is recreated. If necessary, you can work around that by replacing RunningMeanStd by TfRunningMeanStd in [baselines/common/vec_env/vec_normalize.py](baselines/common/vec_env/vec_normalize.py#L12). This way, mean and std of environment normalizing wrapper will be saved in tensorflow variables and included in the model file; however, training is slower that way - hence not including it by default
 
 ## Loading and vizualizing learning curves and other training metrics
-See [here](docs/viz/viz.ipynb) for instructions on how to load and display the training data. 
+See [here](docs/viz/viz.ipynb) for instructions on how to load and display the training data.
 
 ## Subpackages
 
