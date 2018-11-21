@@ -60,7 +60,7 @@ def mara_lstm():
         gamma=0.99,
         noptepochs=10,
         log_interval=1,
-        ent_coef=0.0,
+        ent_coef=0.01,
         lr=lambda f: 3e-4 * f,
         cliprange=0.2,
         vf_coef=0.5,
@@ -68,7 +68,7 @@ def mara_lstm():
         max_grad_norm=0.5,
         value_network='shared',
         network='lstm',
-        nlstm=128,
+        nlstm=256,
         layer_norm=False,
         total_timesteps=1e8,
         save_interval=10
