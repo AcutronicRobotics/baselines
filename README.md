@@ -1,4 +1,9 @@
 **Status:** Active (under active development, breaking changes may occur)
+<<<<<<< HEAD
+=======
+
+<img src="data/logo.jpg" width=25% align="right" /> [![Build status](https://travis-ci.org/openai/baselines.svg?branch=master)](https://travis-ci.org/openai/baselines)
+>>>>>>> 7139a66... Merge pull request #728 from openai/christopherhesse-patch-1
 
 <img src="data/logo.jpg" width=25% align="right" /> [![Build status](https://travis-ci.org/erlerobot/baselines.svg?branch=master)](https://travis-ci.org/erlerobot/baselines)
 
