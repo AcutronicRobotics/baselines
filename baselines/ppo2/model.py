@@ -3,6 +3,7 @@ import functools
 
 from baselines.common.tf_util import get_session, save_variables, load_variables
 from baselines.common.tf_util import initialize
+from baselines.common.tf_util import normc_initializer
 
 try:
     from baselines.common.mpi_adam_optimizer import MpiAdamOptimizer
@@ -136,6 +137,10 @@ class Model(object):
 
         # Normalize the advantages
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
+
+        # pass relu hidden layer with 512, size of the obs, this needs to be added with flag or used somewhere else.
+        # obs = tf.nn.relu_layer(tf.layers.dense(obs, 512, name='lin', kernel_initializer=normc_initializer(1.0)))
+        # obs = tf.nn.relu(obs)
 
         td_map = {
             self.train_model.X : obs,

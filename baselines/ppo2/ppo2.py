@@ -142,6 +142,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
         # Here what we're going to do is for each minibatch calculate the loss and append it.
         mblossvals = []
+
         if states is None: # nonrecurrent version
             inds = np.arange(nbatch)
             for _ in range(noptepochs):
