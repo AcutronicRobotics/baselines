@@ -51,9 +51,10 @@ class VecNormalize(VecEnvWrapper):
         return obs, rews, news, collisions, infos
 
     def step_wait_runtime(self):
+        print("I am in vec env step_wait_runtime")
         obs, rews, news, infos = self.venv.step_wait_runtime()
         self.ret = self.ret * self.gamma + rews
-        obs = self._obfilt(obs)
+        obs = self._obfilt_run(obs)
         if self.ret_rms:
             self.ret_rms.update(self.ret)
             rews = np.clip(rews / np.sqrt(self.ret_rms.var + self.epsilon), -self.cliprew, self.cliprew)
@@ -64,6 +65,18 @@ class VecNormalize(VecEnvWrapper):
         if self.ob_rms:
             self.ob_rms.update(obs)
             obs = np.clip((obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon), -self.clipob, self.clipob)
+            return obs
+        else:
+            return obs
+
+    def _obfilt_run(self, obs):
+        print("I am in _obfilt_run")
+        if self.ob_rms:
+            self.ob_rms.update(obs)
+            # obs = (-obs + self.ob_rms.mean)
+            # obs = np.clip((obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon), -self.clipob, self.clipob)
+            # obs = np.clip((obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon), -self.clipob, self.clipob)
+            obs = np.clip(self.ob_rms.mean + obs*np.sqrt(self.ob_rms.var + self.epsilon),-self.clipob, self.clipob)
             return obs
         else:
             return obs
