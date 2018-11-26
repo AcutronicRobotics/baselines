@@ -56,7 +56,7 @@ def mara_lstm():
         nsteps=1024,
         #otherwise, last minibatch gets noisy gradient,
         # careful this by default is 1, please change it in your script
-        nminibatches=4, #batchsize = nevn * nsteps // nminibatches
+        nminibatches=2, #batchsize = nevn * nsteps // nminibatches
         lam=0.95,
         gamma=0.99,
         noptepochs=10,
@@ -69,7 +69,7 @@ def mara_lstm():
         max_grad_norm=0.5,
         value_network='shared',
         network='lstm',
-        nlstm=256,
+        nlstm=512,
         layer_norm=False,
         total_timesteps=1e8,
         save_interval=10
