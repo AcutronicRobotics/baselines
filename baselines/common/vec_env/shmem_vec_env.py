@@ -55,6 +55,7 @@ class ShmemVecEnv(VecEnv):
             proc.start()
             child_pipe.close()
         self.waiting_step = False
+        self.specs = [f().spec for f in env_fns]
         self.viewer = None
 
     def reset(self):

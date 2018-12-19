@@ -109,7 +109,8 @@ def build_env(args, render=False):
        config.gpu_options.allow_growth = True
        get_session(config=config)
 
-       env = make_vec_env(env_id, env_type, args.num_env or 1, seed, reward_scale=args.reward_scale)
+       flatten_dict_observations = alg not in {'her'}
+       env = make_vec_env(env_id, env_type, args.num_env or 1, seed, reward_scale=args.reward_scale, flatten_dict_observations=flatten_dict_observations)
 
        if env_type == 'mujoco':
            env = VecNormalize(env)
@@ -205,11 +206,16 @@ def main(args):
         logger.log("Running trained model")
         env = build_env(args, render=True)
         obs = env.reset()
-        def initialize_placeholders(nlstm=128,**kwargs):
-            return np.zeros((args.num_env or 1, 2*nlstm)), np.zeros((1))
-        state, dones = initialize_placeholders(**extra_args)
+
+        state = model.initial_state if hasattr(model, 'initial_state') else None
+        dones = np.zeros((1,))
+
         while True:
-            actions, _, state, _ = model.step(obs,S=state, M=dones)
+            if state is not None:
+                actions, _, state, _ = model.step(obs,S=state, M=dones)
+            else:
+                actions, _, _, _ = model.step(obs)
+
             obs, _, done, _ = env.step(actions)
             env.render()
             if done:
