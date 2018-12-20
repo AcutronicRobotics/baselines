@@ -11,6 +11,7 @@ from baselines import logger
 from .util import dict_to_obs, obs_space_info, obs_to_dict
 
 _NP_TO_CT = {np.float32: ctypes.c_float,
+             np.float64: ctypes.c_float64,
              np.int32: ctypes.c_int32,
              np.int8: ctypes.c_int8,
              np.uint8: ctypes.c_char,
@@ -54,6 +55,7 @@ class ShmemVecEnv(VecEnv):
             proc.start()
             child_pipe.close()
         self.waiting_step = False
+        self.specs = [f().spec for f in env_fns]
         self.viewer = None
 
     def reset(self):
