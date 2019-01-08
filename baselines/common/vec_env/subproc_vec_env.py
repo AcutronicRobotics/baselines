@@ -56,7 +56,7 @@ class SubprocVecEnv(VecEnv):
         self.remotes[0].send(('get_spaces', None))
         observation_space, action_space = self.remotes[0].recv()
         self.viewer = None
-        self.specs = [f().spec for f in env_fns]
+        # self.specs = [f().spec for f in env_fns]
         VecEnv.__init__(self, len(env_fns), observation_space, action_space)
 
     def step_async(self, actions):
