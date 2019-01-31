@@ -43,8 +43,7 @@ def mara_mlp():
         value_network = 'copy',
         network = 'mlp',
         total_timesteps = 1e8,
-        save_interval = 10,
-        num_envs = 1
+        save_interval = 10
     )
 
 def mara_lstm():
