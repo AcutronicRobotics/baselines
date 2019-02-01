@@ -44,8 +44,7 @@ def mara_mlp():
         network = 'mlp',
         total_timesteps = 1e8,
         save_interval = 10,
-        env_name = 'MARACollision-v0',
-        num_envs = 2
+        env_name = 'MARA-v0'
     )
 
 def mara_lstm():
@@ -75,5 +74,7 @@ def mara_lstm():
         nlstm = 256,
         layer_norm = False,
         total_timesteps = 1e8,
-        save_interval = 10
+        save_interval = 10,
+        env_name = 'MARA-v0',
+        num_envs = 1
     )
