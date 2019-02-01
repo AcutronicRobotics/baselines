@@ -43,7 +43,9 @@ def mara_mlp():
         value_network = 'copy',
         network = 'mlp',
         total_timesteps = 1e8,
-        save_interval = 10
+        save_interval = 10,
+        env_name = 'MARACollision-v0',
+        num_envs = 2
     )
 
 def mara_lstm():
