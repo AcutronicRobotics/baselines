@@ -75,6 +75,6 @@ def mara_lstm():
         network = 'lstm',
         total_timesteps = 1e8,
         save_interval = 10,
-        env_name = 'MARA-v0',
+        env_name = 'MARACollisionOrientRandomTarget-v0',
         num_envs = 2
     )
