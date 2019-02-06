@@ -28,7 +28,7 @@ def mara_mlp():
         num_layers = 4,
         num_hidden = 128,
         layer_norm = False,
-        nsteps = 2048,
+        nsteps = 1024,
         nminibatches = 32,
         lam = 0.95,
         gamma = 0.99,
@@ -44,7 +44,11 @@ def mara_mlp():
         network = 'mlp',
         total_timesteps = 1e8,
         save_interval = 10,
-        env_name = 'MARA-v0'
+        env_name = 'MARA-v0',
+        # env_name = 'MARAOrient-v0'
+        # env_name = 'MARACollision-v0'
+        # env_name = 'MARACollisionOrient-v0'
+        trained_path = '/media/yue/hard_disk/ros_rl2/MARA-v0/ppo2_mlp-2019-02-02/checkpoints/02150'
     )
 
 def mara_lstm():
@@ -76,5 +80,9 @@ def mara_lstm():
         total_timesteps = 1e8,
         save_interval = 10,
         env_name = 'MARACollisionOrientRandomTarget-v0',
-        num_envs = 2
+        num_envs = 2,
+        transfer_path = None,
+        # transfer_path = '/tmp/ros_rl2/MARACollisionOrientRandomTarget-v0/ppo2_lstm/checkpoints/00090',
+        trained_path = '/tmp/ros_rl2/MARACollisionOrientRandomTarget-v0/ppo2_lstm/checkpoints/00090',
+        # trained_path = '/media/yue/hard_disk/ros_rl2/MARACollisionOrientRandomTarget-v0/ppo2_lstm-test/checkpoints/00170'
     )
