@@ -45,9 +45,9 @@ def mara_mlp():
         total_timesteps = 1e8,
         save_interval = 10,
         env_name = 'MARA-v0',
-        # env_name = 'MARAOrient-v0'
-        # env_name = 'MARACollision-v0'
-        # env_name = 'MARACollisionOrient-v0'
+        # env_name = 'MARAOrient-v0',
+        # env_name = 'MARACollision-v0',
+        # env_name = 'MARACollisionOrient-v0',
         trained_path = '/media/yue/hard_disk/ros_rl2/MARA-v0/ppo2_mlp-2019-02-02/checkpoints/02150'
     )
 
