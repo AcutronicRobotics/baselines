@@ -29,7 +29,7 @@ def mara_mlp():
         num_hidden = 128,
         layer_norm = False,
         nsteps = 1024,
-        nminibatches = 32,
+        nminibatches = 4, #batchsize = nevn * nsteps // nminibatches
         lam = 0.95,
         gamma = 0.99,
         noptepochs = 10,
@@ -44,11 +44,11 @@ def mara_mlp():
         network = 'mlp',
         total_timesteps = 1e8,
         save_interval = 10,
-        env_name = 'MARA-v0',
+        # env_name = 'MARA-v0',
         # env_name = 'MARAOrient-v0',
-        # env_name = 'MARACollision-v0',
+        env_name = 'MARACollision-v0',
         # env_name = 'MARACollisionOrient-v0',
-        trained_path = '/media/yue/hard_disk/ros_rl2/MARA-v0/ppo2_mlp-2019-02-02/checkpoints/02150'
+        trained_path = '/media/yue/hard_disk/ros_rl2/MARACollision-v0/ppo2_mlp_2019-02-12_vec/checkpoints/06670'
     )
 
 def mara_lstm():
@@ -59,11 +59,8 @@ def mara_lstm():
         # nbatch_train = nbatch // nminibatches
         # assert nbatch % nminibatches == 0
         # assert batchsize == nbatch_train >= nsteps
-        # nan < 1024
-        # gpu > 512
         nsteps = 1024,
         #otherwise, last minibatch gets noisy gradient,
-        # careful this by default is 1, please change it in your script
         nminibatches = 2, #batchsize = nevn * nsteps // nminibatches
         lam = 0.95,
         gamma = 0.99,
