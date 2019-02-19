@@ -72,9 +72,6 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
     **network_kwargs:                 keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
                                       For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
-
-
-
     '''
 
     set_global_seeds(seed)
@@ -118,6 +115,11 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
     if eval_env is not None:
         eval_epinfobuf = deque(maxlen=100)
 
+    best_mean_rewbuffer = -np.inf
+    checkdir = osp.join(logger.get_dir(), 'checkpoints')
+    os.makedirs(checkdir, exist_ok=True)
+    best_savepath = osp.join(checkdir, 'best')
+
     # Start total timer
     tfirststart = time.time()
 
@@ -144,6 +146,8 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         mblossvals = []
 
         if states is None: # nonrecurrent version
+            # Index of each element of batch_size
+            # Create the indices array
             inds = np.arange(nbatch)
             for _ in range(noptepochs):
                 # Randomize the indexes
@@ -177,6 +181,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         tnow = time.time()
         # Calculate the fps (frame per second)
         fps = int(nbatch / (tnow - tstart))
+
         if update % log_interval == 0 or update == 1:
             # Calculates if value function is a good predicator of the returns (ev > 1)
             # or if it's just worse than predicting nothing (ev =< 0)
@@ -186,7 +191,8 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             logger.logkv("total_timesteps", update*nbatch)
             logger.logkv("fps", fps)
             logger.logkv("explained_variance", float(ev))
-            logger.logkv('eprewmean', safemean([epinfo['r'] for epinfo in epinfobuf]))
+            mean_rewbuffer = safemean([epinfo['r'] for epinfo in epinfobuf])
+            logger.logkv('eprewmean', mean_rewbuffer)
             logger.logkv('eplenmean', safemean([epinfo['l'] for epinfo in epinfobuf]))
             if eval_env is not None:
                 logger.logkv('eval_eprewmean', safemean([epinfo['r'] for epinfo in eval_epinfobuf]) )
@@ -196,12 +202,19 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
                 logger.logkv(lossname, lossval)
             if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
                 logger.dumpkvs()
-        if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir() and (MPI is None or MPI.COMM_WORLD.Get_rank() == 0):
-            checkdir = osp.join(logger.get_dir(), 'checkpoints')
-            os.makedirs(checkdir, exist_ok=True)
-            savepath = osp.join(checkdir, '%.5i'%update)
-            print('Saving to', savepath)
-            model.save(savepath)
+
+        if logger.get_dir() and (MPI is None or MPI.COMM_WORLD.Get_rank() == 0):
+
+            if save_interval != 0 and mean_rewbuffer > best_mean_rewbuffer:
+                best_mean_rewbuffer = mean_rewbuffer
+                print('Saving to', best_savepath)
+                model.save(best_savepath)
+
+            if update % save_interval == 0 or update == 1:
+                savepath = osp.join(checkdir, '%.5i'%update)
+                print('Saving to', savepath)
+                model.save(savepath)
+
     return model
 # Avoid division error when calculate the mean (in our case if epinfo is empty returns np.nan, not return an error)
 def safemean(xs):
