@@ -48,7 +48,9 @@ def mara_mlp():
         # env_name = 'MARAOrient-v0',
         env_name = 'MARACollision-v0',
         # env_name = 'MARACollisionOrient-v0',
-        trained_path = '/media/yue/hard_disk/ros_rl2/MARACollision-v0/ppo2_mlp_2019-02-12_vec/checkpoints/06670'
+        transfer_path = None,
+        # transfer_path = '/tmp/ros_rl2/MARACollision-v0/ppo2_mlp/2019-02-19_12h47min/checkpoints/best',
+        trained_path = '/tmp/ros_rl2/MARACollision-v0/ppo2_mlp/2019-02-19_12h48min/checkpoints/best'
     )
 
 def mara_lstm():
