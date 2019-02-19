@@ -9,7 +9,6 @@ from baselines.common.models import get_network_builder
 
 import gym
 
-
 class PolicyWithValue(object):
     """
     Encapsulates fields and methods for RL policy and value function estimation with shared parameters
@@ -126,6 +125,9 @@ class PolicyWithValue(object):
     def load(self, load_path):
         tf_util.load_state(load_path, sess=self.sess)
 
+    def load_var(self, load_path):
+        tf_util.load_variables(load_path, sess=self.sess)
+
 def build_policy(env, policy_network, value_network=None,  normalize_observations=False, estimate_q=False, **policy_kwargs):
     if isinstance(policy_network, str):
         network_type = policy_network
@@ -185,7 +187,6 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
         return policy
 
     return policy_fn
-
 
 def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
     rms = RunningMeanStd(shape=x.shape[1:])

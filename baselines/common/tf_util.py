@@ -349,6 +349,17 @@ def save_variables(save_path, variables=None, sess=None):
         os.makedirs(dirname, exist_ok=True)
     joblib.dump(save_dict, save_path)
 
+def save_trpo_variables(save_path, variables=None, sess=None):
+    sess = sess or get_session()
+    variables = variables or tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+
+    ps = sess.run(variables)
+    save_dict = {v.name[3:]: value for v, value in zip(variables, ps)}
+    dirname = os.path.dirname(save_path)
+    if any(dirname):
+        os.makedirs(dirname, exist_ok=True)
+    joblib.dump(save_dict, save_path)
+
 def load_variables(load_path, variables=None, sess=None):
     sess = sess or get_session()
     variables = variables or tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)

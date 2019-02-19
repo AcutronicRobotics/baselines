@@ -103,6 +103,7 @@ def learn(*,
         vf_iters =3,
         max_episodes=0, max_iters=0,  # time constraint
         callback=None,
+        save_interval=0,
         load_path=None,
         **network_kwargs
         ):
@@ -139,6 +140,8 @@ def learn(*,
     max_iters               maximum number of policy optimization iterations
 
     callback                function to be called with (locals(), globals()) each policy optimization step
+
+    save_interval: int      number of timesteps between saving events
 
     load_path               str, path to load the model from (default: None, i.e. no model is loaded)
 
@@ -256,7 +259,8 @@ def learn(*,
 
     U.initialize()
     if load_path is not None:
-        pi.load(load_path)
+        print("Loading model from: ", load_path)
+        pi.load_var(load_path)
 
     th_init = get_flat()
     if MPI is not None:
@@ -283,6 +287,11 @@ def learn(*,
 
     assert sum([max_iters>0, total_timesteps>0, max_episodes>0]) < 2, \
         'out of max_iters, total_timesteps, and max_episodes only one should be specified'
+
+    best_mean_rewbuffer = -np.inf
+    checkdir = os.path.join(logger.get_dir(), 'checkpoints')
+    os.makedirs(checkdir, exist_ok=True)
+    best_savepath = os.path.join(checkdir, "best")
 
     while True:
         if callback: callback(locals(), globals())
@@ -375,38 +384,31 @@ def learn(*,
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
-
+        mean_rewbuffer = np.mean(rewbuffer)
         logger.record_tabular("EpLenMean", np.mean(lenbuffer))
-        logger.record_tabular("EpRewMean", np.mean(rewbuffer))
+        logger.record_tabular("EpRewMean", mean_rewbuffer)
         logger.record_tabular("EpRewSEM", np.std(rewbuffer))
         logger.record_tabular("EpThisIter", len(lens))
         episodes_so_far += len(lens)
         timesteps_so_far += sum(lens)
 
-        # # Log in tensorboard
-        # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-        # summary_writer.add_summary(summary, timesteps_so_far)
+        if logger.get_dir() and (MPI is None or MPI.COMM_WORLD.Get_rank() == 0):
 
+            if save_interval != 0 and mean_rewbuffer > best_mean_rewbuffer:
+                best_mean_rewbuffer = mean_rewbuffer
+                print('Saving to', best_savepath)
+                U.save_trpo_variables(best_savepath)
 
-        # """
-        # Save the model at every itteration
-        # """
-        # if save_model_with_prefix:
-        #     basePath = '/tmp/rosrl/' + str(env.__class__.__name__) +'/trpo/'
-        #     # summary = tf.Summary(value=[tf.Summary.Value(tag="EpRewMean", simple_value = np.mean(rewbuffer))])
-        #     # summary_writer.add_summary(summary, iters_so_far)
-        #     if not os.path.exists(basePath):
-        #         os.makedirs(basePath)
-        #     modelF= basePath + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
-        #     U.save_state(modelF)
-        #     logger.log("Saved model to file :{}".format(modelF))
+            if iters_so_far % save_interval == 0:
+                savepath = os.path.join(checkdir, '%.5i'%iters_so_far)
+                print('Saving to', savepath)
+                U.save_trpo_variables(savepath)
 
         iters_so_far += 1
 
         logger.record_tabular("EpisodesSoFar", episodes_so_far)
         logger.record_tabular("TimestepsSoFar", timesteps_so_far)
         logger.record_tabular("TimeElapsed", time.time() - tstart)
-
 
         if rank==0:
             logger.dump_tabular()
