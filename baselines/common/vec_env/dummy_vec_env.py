@@ -73,7 +73,6 @@ class DummyVecEnv(VecEnv):
                 np.copy(self.buf_collisions), self.buf_infos.copy())
 
     def step_wait_runtime(self):
-        # print("I am in dummy_vec_env step_wait_runtime")
         for e in range(self.num_envs):
             action = self.actions[e]
             if isinstance(self.envs[e].action_space, spaces.Discrete):

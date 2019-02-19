@@ -51,7 +51,6 @@ class VecNormalize(VecEnvWrapper):
         return obs, rews, news, collisions, infos
 
     def step_wait_runtime(self):
-        # print("I am in vec env step_wait_runtime")
         obs, rews, news, infos = self.venv.step_wait_runtime()
         self.ret = self.ret * self.gamma + rews
         obs = self._obfilt_run(obs)
@@ -71,12 +70,10 @@ class VecNormalize(VecEnvWrapper):
 
     def _obfilt_run(self, obs):
         if self.ob_rms:
-            # print("I am in _obfilt_run, ob_rms")
             self.ob_rms.update(obs)
-            obs = np.clip(self.ob_rms.mean + obs*np.sqrt(self.ob_rms.var + self.epsilon),-self.clipob, self.clipob)
-            return obs
-        else:
-            return obs
+            obs = np.clip(self.ob_rms.mean + obs * np.sqrt(self.ob_rms.var + self.epsilon), -self.clipob, self.clipob)
+
+        return obs
 
     def reset(self):
         self.ret = np.zeros(self.num_envs)
