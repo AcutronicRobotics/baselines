@@ -25,8 +25,8 @@ def retro():
 
 def mara_mlp():
     return dict(
-        num_layers = 4,
-        num_hidden = 128,
+        num_layers = 3,
+        num_hidden = 64,
         layer_norm = False,
         nsteps = 1024,
         nminibatches = 4, #batchsize = nevn * nsteps // nminibatches
@@ -35,7 +35,7 @@ def mara_mlp():
         noptepochs = 10,
         log_interval = 1,
         ent_coef = 0.0,
-        lr = lambda f: 3e-4 * f,
+        lr = lambda f: 6e-4 * f,
         cliprange = 0.2,
         vf_coef = 0.5,
         max_grad_norm = 0.5,
