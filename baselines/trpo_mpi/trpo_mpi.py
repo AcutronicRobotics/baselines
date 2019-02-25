@@ -392,7 +392,7 @@ def learn(*,
         episodes_so_far += len(lens)
         timesteps_so_far += sum(lens)
 
-        if logger.get_dir() and (MPI is None or MPI.COMM_WORLD.Get_rank() == 0):
+        if save_interval and logger.get_dir() and (MPI is None or MPI.COMM_WORLD.Get_rank() == 0):
 
             if save_interval != 0 and mean_rewbuffer > best_mean_rewbuffer:
                 best_mean_rewbuffer = mean_rewbuffer

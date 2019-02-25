@@ -203,7 +203,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
                 logger.dumpkvs()
 
-        if logger.get_dir() and (MPI is None or MPI.COMM_WORLD.Get_rank() == 0):
+        if save_interval and logger.get_dir() and (MPI is None or MPI.COMM_WORLD.Get_rank() == 0):
 
             if save_interval != 0 and mean_rewbuffer > best_mean_rewbuffer:
                 best_mean_rewbuffer = mean_rewbuffer
