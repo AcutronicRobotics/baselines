@@ -1,14 +1,17 @@
 import os.path as osp
+import os
 import time
 import functools
+import numpy as np
 import tensorflow as tf
 from baselines import logger
-
+from collections import deque
 from baselines.common import set_global_seeds, explained_variance
 from baselines.common.policies import build_policy
 from baselines.common.tf_util import get_session, save_variables, load_variables
 
-from baselines.a2c.runner import Runner
+# from baselines.a2c.runner import Runner
+from baselines.acktr.runner import Runner
 from baselines.a2c.utils import Scheduler, find_trainable_variables
 from baselines.acktr import kfac
 
@@ -86,15 +89,16 @@ class Model(object):
         self.train_model = train_model
         self.step_model = step_model
         self.step = step_model.step
+        self.step_deterministic = step_model.step_deterministic
         self.value = step_model.value
         self.initial_state = step_model.initial_state
         tf.global_variables_initializer().run(session=sess)
 
 def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, nsteps=20,
                  ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
-                 kfac_clip=0.001, save_interval=None, lrschedule='linear', load_path=None, is_async=True, **network_kwargs):
-    set_global_seeds(seed)
+                 kfac_clip=0.001, save_interval=0, lrschedule='linear', load_path=None, is_async=True, **network_kwargs):
 
+    set_global_seeds(seed)
 
     if network == 'cnn':
         network_kwargs['one_dim_bias'] = True
@@ -108,10 +112,7 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
                                 =nsteps, ent_coef=ent_coef, vf_coef=vf_coef, vf_fisher_coef=
                                 vf_fisher_coef, lr=lr, max_grad_norm=max_grad_norm, kfac_clip=kfac_clip,
                                 lrschedule=lrschedule, is_async=is_async)
-    if save_interval and logger.get_dir():
-        import cloudpickle
-        with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
-            fh.write(cloudpickle.dumps(make_model))
+
     model = make_model()
 
     if load_path is not None:
@@ -126,14 +127,25 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
     else:
         enqueue_threads = []
 
+
+    epinfobuf = deque(maxlen=100)
+    best_mean_rewbuffer = -np.inf
+    checkdir = os.path.join(logger.get_dir(), 'checkpoints')
+    os.makedirs(checkdir, exist_ok=True)
+    best_savepath = os.path.join(checkdir, "best")
+
     for update in range(1, total_timesteps//nbatch+1):
-        obs, states, rewards, masks, actions, values = runner.run()
+        # obs, states, rewards, masks, actions, values = runner.run()
+        obs, states, rewards, masks, actions, values, epinfos = runner.run()
+        epinfobuf.extend(epinfos)
         policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
         model.old_obs = obs
         nseconds = time.time()-tstart
         fps = int((update*nbatch)/nseconds)
         if update % log_interval == 0 or update == 1:
             ev = explained_variance(values, rewards)
+            mean_rewbuffer = safemean([epinfo['r'] for epinfo in epinfobuf])
+            logger.logkv('eprewmean', mean_rewbuffer)
             logger.record_tabular("nupdates", update)
             logger.record_tabular("total_timesteps", update*nbatch)
             logger.record_tabular("fps", fps)
@@ -143,10 +155,22 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
             logger.record_tabular("explained_variance", float(ev))
             logger.dump_tabular()
 
-        if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir():
-            savepath = osp.join(logger.get_dir(), 'checkpoint%.5i'%update)
-            print('Saving to', savepath)
-            model.save(savepath)
+        if save_interval and logger.get_dir():
+
+            if save_interval != 0 and mean_rewbuffer > best_mean_rewbuffer:
+                best_mean_rewbuffer = mean_rewbuffer
+                print('Saving to', best_savepath)
+                model.save(best_savepath)
+
+            if update % save_interval == 0 or update == 1:
+                savepath = os.path.join(checkdir, '%.5i'%update)
+                print('Saving to', savepath)
+                model.save(savepath)
+
     coord.request_stop()
     coord.join(enqueue_threads)
     return model
+
+# Avoid division error when calculate the mean (in our case if epinfo is empty returns np.nan, not return an error)
+def safemean(xs):
+    return np.nan if len(xs) == 0 else np.mean(xs)
