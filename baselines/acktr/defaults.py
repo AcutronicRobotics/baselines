@@ -32,6 +32,6 @@ def mara():
         env_name = 'MARACollision-v0',
         # env_name = 'MARACollisionOrient-v0',
         transfer_path = None,
-        # transfer_path = '/tmp/ros_rl2/MARACollision-v0/acktr/2019-02-25_13h53min/checkpoints/best,
-        trained_path = '/tmp/ros_rl2/MARACollision-v0/acktr/2019-02-25_13h53min/checkpoints/best'
+        # transfer_path = '/tmp/ros2learn/MARACollision-v0/acktr/2019-02-25_13h53min/checkpoints/best,
+        trained_path = '/tmp/ros2learn/MARACollision-v0/acktr/2019-02-25_13h53min/checkpoints/best'
     )

@@ -25,17 +25,17 @@ def retro():
 
 def mara_mlp():
     return dict(
-        num_layers = 3,
+        num_layers = 2,
         num_hidden = 64,
         layer_norm = False,
-        nsteps = 1024,
-        nminibatches = 4, #batchsize = nevn * nsteps // nminibatches
+        nsteps = 2048,
+        nminibatches = 32, #batchsize = nevn * nsteps // nminibatches
         lam = 0.95,
         gamma = 0.99,
         noptepochs = 10,
         log_interval = 1,
         ent_coef = 0.0,
-        lr = lambda f: 6e-4 * f,
+        lr = lambda f: 3e-4 * f,
         cliprange = 0.2,
         vf_coef = 0.5,
         max_grad_norm = 0.5,
@@ -45,12 +45,12 @@ def mara_mlp():
         total_timesteps = 1e8,
         save_interval = 10,
         # env_name = 'MARA-v0',
-        # env_name = 'MARAOrient-v0',
-        env_name = 'MARACollision-v0',
+        env_name = 'MARAOrient-v0',
+        # env_name = 'MARACollision-v0',
         # env_name = 'MARACollisionOrient-v0',
         transfer_path = None,
-        # transfer_path = '/tmp/ros_rl2/MARACollision-v0/ppo2_mlp/2019-02-19_12h47min/checkpoints/best',
-        trained_path = '/media/yue/hard_disk/ros_rl2/MARACollision-v0/ppo2_mlp/2019-02-22_17h41min/checkpoints/best'
+        # transfer_path = '/tmp/ros2learn/MARACollision-v0/ppo2_mlp/2019-02-19_12h47min/checkpoints/best',
+        trained_path = '/media/yue/hard_disk/ros2learn/MARAOrient-v0/2019-02-27_18h01min/checkpoints/02420'
     )
 
 def mara_lstm():
@@ -81,6 +81,6 @@ def mara_lstm():
         env_name = 'MARACollisionOrientRandomTarget-v0',
         num_envs = 2,
         transfer_path = None,
-        # transfer_path = '/tmp/ros_rl2/MARACollisionOrientRandomTarget-v0/ppo2_lstm/checkpoints/00090',
-        trained_path = '/media/yue/hard_disk/ros_rl2/MARACollisionOrientRandomTarget-v0/ppo2_lstm-test/checkpoints/00170'
+        # transfer_path = '/tmp/ros2learn/MARACollisionOrientRandomTarget-v0/ppo2_lstm/checkpoints/00090',
+        trained_path = '/media/yue/hard_disk/ros2learn/MARACollisionOrientRandomTarget-v0/ppo2_lstm-test/checkpoints/00170'
     )
