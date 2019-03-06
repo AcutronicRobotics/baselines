@@ -363,7 +363,7 @@ def learn(*,
                 assert all(np.allclose(ps, paramsums[0]) for ps in paramsums[1:])
 
         for (lossname, lossval) in zip(loss_names, meanlosses):
-            logger.record_tabular(lossname, lossval)
+            logger.logkv(lossname, lossval)
 
         with timed("vf"):
 
@@ -373,7 +373,7 @@ def learn(*,
                     g = allmean(compute_vflossandgrad(mbob, mbret))
                     vfadam.update(g, vf_stepsize)
 
-        logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
+        logger.logkv("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
 
         lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
         if MPI is not None:
@@ -385,10 +385,10 @@ def learn(*,
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
         mean_rewbuffer = np.mean(rewbuffer)
-        logger.record_tabular("EpLenMean", np.mean(lenbuffer))
-        logger.record_tabular("EpRewMean", mean_rewbuffer)
-        logger.record_tabular("EpRewSEM", np.std(rewbuffer))
-        logger.record_tabular("EpThisIter", len(lens))
+        logger.logkv("eplenmean", np.mean(lenbuffer))
+        logger.logkv("eprewmean", mean_rewbuffer)
+        logger.logkv("eprewsem", np.std(rewbuffer))
+        logger.logkv("epthisiter", len(lens))
         episodes_so_far += len(lens)
         timesteps_so_far += sum(lens)
 
@@ -406,9 +406,9 @@ def learn(*,
 
         iters_so_far += 1
 
-        logger.record_tabular("EpisodesSoFar", episodes_so_far)
-        logger.record_tabular("TimestepsSoFar", timesteps_so_far)
-        logger.record_tabular("TimeElapsed", time.time() - tstart)
+        logger.logkv("epsofar", episodes_so_far)
+        logger.logkv("timestepsofar", timesteps_so_far)
+        logger.logkv("timelapsed", time.time() - tstart)
 
         if rank==0:
             logger.dump_tabular()
