@@ -4,7 +4,7 @@ def mujoco():
         value_network='copy'
     )
 
-def mara():
+def mara_mlp():
     return dict(
         num_layers=2,
         num_hidden=64,

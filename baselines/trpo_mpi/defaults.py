@@ -28,7 +28,7 @@ def mujoco():
         normalize_observations=True,
     )
 
-def mara():
+def mara_mlp():
     return dict(
         num_layers = 2,
         num_hidden = 64,
