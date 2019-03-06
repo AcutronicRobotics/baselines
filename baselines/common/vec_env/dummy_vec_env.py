@@ -61,8 +61,8 @@ class DummyVecEnv(VecEnv):
     def step_wait_collisions(self):
         for e in range(self.num_envs):
             action = self.actions[e]
-            if isinstance(self.envs[e].action_space, spaces.Discrete):
-                action = int(action)
+            # if isinstance(self.envs[e].action_space, spaces.Discrete):
+            #     action = int(action)
 
             obs, self.buf_rews[e], self.buf_dones[e], self.buf_collisions[e], self.buf_infos[e] = self.envs[e].step_collisions(action)
             if self.buf_dones[e]:
@@ -74,8 +74,8 @@ class DummyVecEnv(VecEnv):
     def step_wait_runtime(self):
         for e in range(self.num_envs):
             action = self.actions[e]
-            if isinstance(self.envs[e].action_space, spaces.Discrete):
-                action = int(action)
+            # if isinstance(self.envs[e].action_space, spaces.Discrete):
+            #     action = int(action)
 
             obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e] = self.envs[e].step_runtime(action)
             self._save_obs(e, obs)
