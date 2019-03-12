@@ -34,7 +34,7 @@ def mara_mlp():
         num_hidden = 64,
         layer_norm = False,
         timesteps_per_batch = 2048,
-        total_timesteps = 1e6,
+        total_timesteps = 1e8,
         max_kl = 0.01,
         cg_iters = 10,
         gamma = 0.99,

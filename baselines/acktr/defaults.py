@@ -21,7 +21,7 @@ def mara_mlp():
         kfac_clip=0.001,
         is_async=True,
         seed = 0,
-        total_timesteps = int(1e6),
+        total_timesteps = int(1e8),
         # network = 'cnn',
         value_network = 'copy',
         lrschedule='linear',
