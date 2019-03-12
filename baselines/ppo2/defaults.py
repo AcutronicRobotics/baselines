@@ -28,7 +28,7 @@ def mara_mlp():
         num_layers = 2,
         num_hidden = 64,
         layer_norm = False,
-        nsteps = 2048,
+        nsteps = 1024,
         nminibatches = 32, #batchsize = nevn * nsteps // nminibatches
         lam = 0.95,
         gamma = 0.99,
@@ -42,15 +42,15 @@ def mara_mlp():
         seed = 0,
         value_network = 'copy',
         network = 'mlp',
-        total_timesteps = 1e8,
+        total_timesteps = 1e6,
         save_interval = 10,
         # env_name = 'MARA-v0',
         # env_name = 'MARAOrient-v0',
-        # env_name = 'MARACollision-v0',
-        env_name = 'MARACollisionOrient-v0',
+        env_name = 'MARACollision-v0',
+        # env_name = 'MARACollisionOrient-v0',
         transfer_path = None,
-        # transfer_path = '/tmp/ros2learn/MARACollision-v0/ppo2_mlp/2019-02-19_12h47min/checkpoints/best',
-        trained_path = '/home/rkojcev/MARA_NN/2019-02-25_18h02min/checkpoint/01750'
+        # transfer_path = '/tmp/ros2learn/MARACollision-v0/ppo2_mlp/2019-03-08_21h50min/checkpoints/best',
+        trained_path = '/tmp/ros2learn/MARACollision-v0/ppo2_mlp/2019-03-08_21h50min/checkpoints/best'
     )
 
 def mara_lstm():
