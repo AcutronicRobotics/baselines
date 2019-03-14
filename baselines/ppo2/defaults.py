@@ -44,13 +44,13 @@ def mara_mlp():
         network = 'mlp',
         total_timesteps = 1e8,
         save_interval = 10,
-        # env_name = 'MARA-v0',
+        env_name = 'MARA-v0',
         # env_name = 'MARAOrient-v0',
-        env_name = 'MARACollision-v0',
+        # env_name = 'MARACollision-v0',
         # env_name = 'MARACollisionOrient-v0',
         transfer_path = None,
-        # transfer_path = '/tmp/ros2learn/MARACollision-v0/ppo2_mlp/2019-02-19_12h47min/checkpoints/best',
-        trained_path = '/media/yue/hard_disk/ros2learn/MARAOrient-v0/2019-02-27_18h01min/checkpoints/02420'
+        # transfer_path = '/tmp/ros2learn/MARA-v0/ppo2_mlp/2019-02-19_12h47min/checkpoints/best',
+        trained_path = '/tmp/ros2learn/MARA-v0/ppo2_mlp/2019-03-12_18h29min/checkpoints/02700'
     )
 
 def mara_lstm():
@@ -82,5 +82,5 @@ def mara_lstm():
         num_envs = 2,
         transfer_path = None,
         # transfer_path = '/tmp/ros2learn/MARACollisionOrientRandomTarget-v0/ppo2_lstm/checkpoints/00090',
-        trained_path = '/media/yue/hard_disk/ros2learn/MARACollisionOrientRandomTarget-v0/ppo2_lstm-test/checkpoints/00170'
+        trained_path = '/tmp/ros2learn/MARACollisionOrientRandomTarget-v0/ppo2_lstm/checkpoints/00090'
     )

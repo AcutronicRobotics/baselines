@@ -48,11 +48,11 @@ def mara_mlp():
         max_iters = 0,
         normalize_observations = True,
         save_interval = 10,
-        # env_name = 'MARA-v0',
+        env_name = 'MARA-v0',
         # env_name = 'MARAOrient-v0',
-        env_name = 'MARACollision-v0',
+        # env_name = 'MARACollision-v0',
         # env_name = 'MARACollisionOrient-v0',
         transfer_path = None,
-        # transfer_path = '/tmp/ros2learn/MARACollision-v0/trpo_mpi/2019-02-19_13h02min/checkpoints/best',
-        trained_path = '/tmp/ros2learn/MARACollision-v0/trpo_mpi/2019-02-19_13h11min/checkpoints/best'
+        # transfer_path = '/tmp/ros2learn/MARA-v0/trpo_mpi/2019-02-19_13h02min/checkpoints/best',
+        trained_path = '/tmp/ros2learn/MARA-v0/trpo_mpi/2019-02-19_13h11min/checkpoints/best'
     )
