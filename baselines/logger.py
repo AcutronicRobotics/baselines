@@ -483,7 +483,7 @@ def read_tb(path):
     return pandas.DataFrame(data, columns=tags)
 
 # configure the default logger on import
-_configure_default_logger()
+#_configure_default_logger()
 
 if __name__ == "__main__":
     _demo()
