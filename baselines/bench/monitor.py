@@ -91,6 +91,9 @@ class Monitor(Wrapper):
         if self.f is not None:
             self.f.close()
 
+    def gg2(self):
+        return self.env
+
     def get_total_steps(self):
         return self.total_steps
 
