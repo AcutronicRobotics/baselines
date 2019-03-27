@@ -6,6 +6,8 @@ from baselines import logger
 from collections import deque
 from baselines.common import explained_variance, set_global_seeds
 from baselines.common.policies import build_policy
+import math
+
 try:
     from mpi4py import MPI
 except ImportError:
@@ -130,7 +132,10 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         tstart = time.time()
         frac = 1.0 - (update - 1.0) / nupdates
         # Calculate the learning rate
-        lrnow = lr(frac)
+        f = math.e**(-0.001918*update)
+        lrnow = lr(f)
+        #lrnow = lr(frac)
+
         # Calculate the cliprange
         cliprangenow = cliprange(frac)
         # Get minibatch
