@@ -18,7 +18,7 @@ def atari():
         lam=0.95, gamma=0.99, noptepochs=4, log_interval=1,
         ent_coef=.01,
         lr=lambda f : f * 2.5e-4,
-        cliprange=lambda f : f * 0.1,
+        cliprange=0.1,
     )
 def retro():
    return atari()
@@ -42,7 +42,7 @@ def mara_mlp():
         seed = 0,
         value_network = 'copy',
         network = 'mlp',
-        total_timesteps = 1e8,
+        total_timesteps = 1e6,
         save_interval = 10,
         env_name = 'MARA-v0',
         #env_name = 'MARAReal-v0',
