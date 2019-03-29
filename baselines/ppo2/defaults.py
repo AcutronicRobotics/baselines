@@ -26,16 +26,16 @@ def retro():
 def mara_mlp():
     return dict(
         num_layers = 2,
-        num_hidden = 64,
+        num_hidden = 16,
         layer_norm = False,
-        nsteps = 1024,
-        nminibatches = 32, #batchsize = nevn * nsteps // nminibatches
+        nsteps = 1024,#2048
+        nminibatches = 8, #batchsize = nevn * nsteps // nminibatches
         lam = 0.95,
         gamma = 0.99,
         noptepochs = 10,
         log_interval = 1,
         ent_coef = 0.0,
-        lr = lambda f: 3e-4 * f,
+        lr = lambda f: 3e-3 * f,
         cliprange = 0.2,
         vf_coef = 0.5,
         max_grad_norm = 0.5,
@@ -44,13 +44,14 @@ def mara_mlp():
         network = 'mlp',
         total_timesteps = 1e6,
         save_interval = 10,
-        # env_name = 'MARA-v0',
-        # env_name = 'MARAOrient-v0',
-        env_name = 'MARACollision-v0',
+        env_name = 'MARA-v0',
+        #env_name = 'MARAReal-v0',
+        #env_name = 'MARAOrient-v0',
+        # env_name = 'MARACollision-v0',
         # env_name = 'MARACollisionOrient-v0',
         transfer_path = None,
-        # transfer_path = '/tmp/ros2learn/MARACollision-v0/ppo2_mlp/2019-03-08_21h50min/checkpoints/best',
-        trained_path = '/tmp/ros2learn/MARACollision-v0/ppo2_mlp/2019-03-08_21h50min/checkpoints/best'
+        # transfer_path = '/tmp/ros2learn/MARA-v0/ppo2_mlp/2019-02-19_12h47min/checkpoints/best',
+        trained_path = '/tmp/ros2learn/MARAOrient-v0/ppo2_mlp/2019-03-26_14h27min/checkpoints/best'
     )
 
 def mara_lstm():
@@ -82,5 +83,5 @@ def mara_lstm():
         num_envs = 2,
         transfer_path = None,
         # transfer_path = '/tmp/ros2learn/MARACollisionOrientRandomTarget-v0/ppo2_lstm/checkpoints/00090',
-        trained_path = '/media/yue/hard_disk/ros2learn/MARACollisionOrientRandomTarget-v0/ppo2_lstm-test/checkpoints/00170'
+        trained_path = '/tmp/ros2learn/MARACollisionOrientRandomTarget-v0/ppo2_lstm/checkpoints/00090'
     )

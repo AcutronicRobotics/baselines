@@ -148,6 +148,7 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
             ev = explained_variance(values, rewards)
             mean_rewbuffer = safemean([epinfo['r'] for epinfo in epinfobuf])
             logger.logkv('eprewmean', mean_rewbuffer)
+            
             logger.record_tabular("nupdates", update)
             logger.record_tabular("total_timesteps", update*nbatch)
             logger.record_tabular("fps", fps)
@@ -157,6 +158,8 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
             logger.record_tabular("explained_variance", float(ev))
             logger.record_tabular("eprewmean", safemean([epinfo['r'] for epinfo in epinfobuf]))
             logger.record_tabular("eplenmean", safemean([epinfo['l'] for epinfo in epinfobuf]))
+            logger.logkv('eprewsem', np.std([epinfo['r'] for epinfo in epinfobuf]))
+            
             logger.dump_tabular()
 
         if save_interval and logger.get_dir():
