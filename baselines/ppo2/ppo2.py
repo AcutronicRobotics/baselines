@@ -205,7 +205,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             for (lossval, lossname) in zip(lossvals, model.loss_names):
                 logger.logkv(lossname, lossval)
 
-            key_set = [key for key in list(epinfobuf)[0].keys() if key not in ["r", "l", "t"]]
+            key_set = [key for key in list(epinfobuf)[-1].keys() if key not in ["r", "l", "t"]]
             for key in key_set:
                 logger.logkv(key, list(epinfobuf)[-1][key])
 
