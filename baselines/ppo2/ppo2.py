@@ -123,23 +123,23 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
     best_savepath = osp.join(checkdir, 'best')
 
     # Start total timer
-    tfirststart = time.time()
+    tfirststart = time.perf_counter()
 
     nupdates = total_timesteps//nbatch
     for update in range(1, nupdates+1):
         assert nbatch % nminibatches == 0
         # Start timer
-        tstart = time.time()
+        tstart = time.perf_counter()
         frac = 1.0 - (update - 1.0) / nupdates
         # Calculate the learning rate
         f = math.e**(-0.001918*update)
         lrnow = lr(f)
         #lrnow = lr(frac)
-
         # Calculate the cliprange
         cliprangenow = cliprange(frac)
         # Get minibatch
         obs, returns, masks, actions, values, neglogpacs, states, epinfos = runner.run() #pylint: disable=E0632
+
         if eval_env is not None:
             eval_obs, eval_returns, eval_masks, eval_actions, eval_values, eval_neglogpacs, eval_states, eval_epinfos = eval_runner.run() #pylint: disable=E0632
 
@@ -169,7 +169,6 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             envsperbatch = nenvs // nminibatches
             envinds = np.arange(nenvs)
             flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
-            envsperbatch = nbatch_train // nsteps
             for _ in range(noptepochs):
                 np.random.shuffle(envinds)
                 for start in range(0, nenvs, envsperbatch):
@@ -183,7 +182,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         # Feedforward --> get losses --> update
         lossvals = np.mean(mblossvals, axis=0)
         # End timer
-        tnow = time.time()
+        tnow = time.perf_counter()
         # Calculate the fps (frame per second)
         fps = int(nbatch / (tnow - tstart))
 
@@ -197,7 +196,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             logger.logkv("fps", fps)
             logger.logkv("explained_variance", float(ev))
             mean_rewbuffer = safemean([epinfo['r'] for epinfo in epinfobuf])
-            logger.logkv('eprewmean', mean_rewbuffer)
+            logger.logkv('eprewmean_smooth', mean_rewbuffer)
             logger.logkv('eprewsem', np.std([epinfo['r'] for epinfo in epinfobuf]))
             logger.logkv('eplenmean', safemean([epinfo['l'] for epinfo in epinfobuf]))
             if eval_env is not None:
@@ -206,6 +205,11 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             logger.logkv('time_elapsed', tnow - tfirststart)
             for (lossval, lossname) in zip(lossvals, model.loss_names):
                 logger.logkv(lossname, lossval)
+
+            key_set = [key for key in list(epinfobuf)[-1].keys() if key not in ["r", "l", "t"]]
+            for key in key_set:
+                logger.logkv(key, list(epinfobuf)[-1][key])
+
             if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
                 logger.dumpkvs()
 
