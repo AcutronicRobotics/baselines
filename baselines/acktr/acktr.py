@@ -14,6 +14,8 @@ from baselines.common.tf_util import get_session, save_variables, load_variables
 from baselines.acktr.runner import Runner
 from baselines.a2c.utils import Scheduler, find_trainable_variables
 from baselines.acktr import kfac
+from baselines.ppo2.ppo2 import safemean
+from collections import deque
 
 
 class Model(object):
@@ -119,6 +121,7 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
         model.load(load_path)
 
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
+    epinfobuf = deque(maxlen=100)
     nbatch = nenvs*nsteps
     tstart = time.time()
     coord = tf.train.Coordinator()
@@ -135,7 +138,6 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
     best_savepath = os.path.join(checkdir, "best")
 
     for update in range(1, total_timesteps//nbatch+1):
-        # obs, states, rewards, masks, actions, values = runner.run()
         obs, states, rewards, masks, actions, values, epinfos = runner.run()
         epinfobuf.extend(epinfos)
         policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
@@ -146,14 +148,18 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
             ev = explained_variance(values, rewards)
             mean_rewbuffer = safemean([epinfo['r'] for epinfo in epinfobuf])
             logger.logkv('eprewmean', mean_rewbuffer)
+            
+            logger.record_tabular("nupdates", update)
+            logger.record_tabular("total_timesteps", update*nbatch)
+            logger.record_tabular("fps", fps)
+            logger.record_tabular("policy_entropy", float(policy_entropy))
+            logger.record_tabular("policy_loss", float(policy_loss))
+            logger.record_tabular("value_loss", float(value_loss))
+            logger.record_tabular("explained_variance", float(ev))
+            logger.record_tabular("eprewmean", safemean([epinfo['r'] for epinfo in epinfobuf]))
+            logger.record_tabular("eplenmean", safemean([epinfo['l'] for epinfo in epinfobuf]))
             logger.logkv('eprewsem', np.std([epinfo['r'] for epinfo in epinfobuf]))
-            logger.logkv("nupdates", update)
-            logger.logkv("total_timesteps", update*nbatch)
-            logger.logkv("fps", fps)
-            logger.logkv("policy_entropy", float(policy_entropy))
-            logger.logkv("policy_loss", float(policy_loss))
-            logger.logkv("value_loss", float(value_loss))
-            logger.logkv("explained_variance", float(ev))
+            
             logger.dump_tabular()
 
         if save_interval and logger.get_dir():

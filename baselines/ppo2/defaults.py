@@ -18,7 +18,7 @@ def atari():
         lam=0.95, gamma=0.99, noptepochs=4, log_interval=1,
         ent_coef=.01,
         lr=lambda f : f * 2.5e-4,
-        cliprange=lambda f : f * 0.1,
+        cliprange=0.1,
     )
 def retro():
    return atari()
@@ -36,8 +36,8 @@ def mara_mlp():
         log_interval = 1,
         ent_coef = 0.0,
         lr = lambda f: 3e-3 * f,
-        cliprange = 0.2,
-        vf_coef = 0.5,
+        cliprange = 0.25,
+        vf_coef = 1,
         max_grad_norm = 0.5,
         seed = 0,
         value_network = 'copy',
@@ -45,12 +45,13 @@ def mara_mlp():
         total_timesteps = 1e8,
         save_interval = 10,
         env_name = 'MARA-v0',
-        # env_name = 'MARAOrient-v0',
+        #env_name = 'MARAReal-v0',
+        #env_name = 'MARAOrient-v0',
         # env_name = 'MARACollision-v0',
         # env_name = 'MARACollisionOrient-v0',
         transfer_path = None,
         # transfer_path = '/tmp/ros2learn/MARA-v0/ppo2_mlp/2019-02-19_12h47min/checkpoints/best',
-        trained_path = '/tmp/ros2learn/MARA-v0/ppo2_mlp/2019-03-12_18h29min/checkpoints/02700'
+        trained_path = '/tmp/ros2learn/MARA-v0/ppo2_mlp/2019-04-02_13h18min/checkpoints/best'
     )
 
 def mara_lstm():
@@ -78,8 +79,8 @@ def mara_lstm():
         network = 'lstm',
         total_timesteps = 1e8,
         save_interval = 10,
-        env_name = 'MARACollisionOrientRandomTarget-v0',
-        num_envs = 2,
+        env_name = 'MARA-v0',
+        num_envs = 4,
         transfer_path = None,
         # transfer_path = '/tmp/ros2learn/MARACollisionOrientRandomTarget-v0/ppo2_lstm/checkpoints/00090',
         trained_path = '/tmp/ros2learn/MARACollisionOrientRandomTarget-v0/ppo2_lstm/checkpoints/00090'

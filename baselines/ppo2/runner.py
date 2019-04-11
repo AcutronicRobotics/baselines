@@ -37,7 +37,7 @@ class Runner(AbstractEnvRunner):
             # Infos contains a ton of useful informations
             self.obs[:], rewards, self.dones, infos = self.env.step(actions)
             for info in infos:
-                maybeepinfo = info.get('episode')
+                maybeepinfo = {sub_key:info[key][sub_key] for key in info.keys() for sub_key in info[key]}
                 if maybeepinfo: epinfos.append(maybeepinfo)
             mb_rewards.append(rewards)
         #batch of steps to batch of rollouts
@@ -72,5 +72,3 @@ def sf01(arr):
     """
     s = arr.shape
     return arr.swapaxes(0, 1).reshape(s[0] * s[1], *s[2:])
-
-
