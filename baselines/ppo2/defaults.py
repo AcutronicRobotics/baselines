@@ -29,7 +29,7 @@ def mara_mlp():
         num_hidden = 16,
         layer_norm = False,
         nsteps = 1024,#2048
-        nminibatches = 8, #batchsize = nevn * nsteps // nminibatches
+        nminibatches = 4, #batchsize = nevn * nsteps // nminibatches
         lam = 0.95,
         gamma = 0.99,
         noptepochs = 10,
