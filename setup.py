@@ -13,7 +13,9 @@ extras = {
         'filelock',
         'pytest',
         'pytest-forked',
-        'atari-py'
+        'atari-py',
+        'matplotlib',
+        'pandas'
     ],
     'mpi': [
         'mpi4py'
@@ -34,8 +36,6 @@ setup(name='baselines',
           'scipy',
           'tqdm',
           'joblib',
-          'dill',
-          'progressbar2',
           'cloudpickle',
           'click',
           'opencv-python'
