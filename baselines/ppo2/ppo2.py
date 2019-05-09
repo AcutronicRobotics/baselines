@@ -138,6 +138,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         # Calculate the learning rate
         f = math.e**(-0.001918*update)
         lrnow = lr(f)
+        lrnow = max(lrnow, 1e-4)
         #lrnow = lr(frac)
         # Calculate the cliprange
         cliprangenow = cliprange(frac)
