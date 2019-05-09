@@ -206,6 +206,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             logger.logkv("misc/total_timesteps", update*nbatch)
             logger.logkv("fps", fps)
             logger.logkv("misc/explained_variance", float(ev))
+            mean_rewbuffer = safemean([epinfo['r'] for epinfo in epinfobuf])
             logger.logkv('eprewmean_smooth', mean_rewbuffer)
             logger.logkv('eprewmean', safemean([epinfo['r'] for epinfo in epinfobuf]))
             logger.logkv('eplenmean', safemean([epinfo['l'] for epinfo in epinfobuf]))
@@ -226,7 +227,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
                 best_mean_rewbuffer = mean_rewbuffer
                 print('Saving to', best_savepath)
                 model.save(best_savepath)
-                
+
             if (update % save_interval == 0 or update == 1):
                 checkdir = osp.join(logger.get_dir(), 'checkpoints')
                 os.makedirs(checkdir, exist_ok=True)
