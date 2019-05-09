@@ -208,7 +208,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             logger.logkv("misc/explained_variance", float(ev))
             mean_rewbuffer = safemean([epinfo['r'] for epinfo in epinfobuf])
             logger.logkv('reward/eprewmean_smooth', mean_rewbuffer)
-            logger.logkv('reward/eprewmean', safemean([epinfo['r'] for epinfo in epinfobuf]))
+            # logger.logkv('reward/eprewmean', safemean([epinfo['r'] for epinfo in epinfobuf]))
             logger.logkv('eplenmean', safemean([epinfo['l'] for epinfo in epinfobuf]))
             if eval_env is not None:
                 logger.logkv('reward/eval_eprewmean', safemean([epinfo['r'] for epinfo in eval_epinfobuf]) )
@@ -219,7 +219,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
             key_set = [key for key in list(epinfobuf)[-1].keys() if key not in ["r", "l", "t"]]
             for key in key_set:
-                logger.logkv(key, list(epinfobuf)[-1][key])
+                logger.logkv('stats/' + key, list(epinfobuf)[-1][key])
 
             logger.dumpkvs()
         if save_interval and logger.get_dir() and is_mpi_root:
